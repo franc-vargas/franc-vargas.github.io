@@ -15,7 +15,7 @@ jobs:
         run: sudo apt update
         
       - name: Install curl
-        run: sudo apt install -y libcurl4-openssl
+        run: sudo apt install -y libcurl4-openssl-dev
         
       - name: Check out repository
         uses: actions/checkout@v4
