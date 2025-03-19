@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: install curl
         run: |
-        sudo apt-get libcurl4-openssl-dev
+        sudo apt install libcurl4-openssl-dev
       - name: Check out repository
         uses: actions/checkout@v4
 
