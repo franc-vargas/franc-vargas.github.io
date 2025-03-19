@@ -7,7 +7,7 @@ name: Quarto Publish
 
 jobs:
   build-deploy:
-    runs-on: "ubuntu 22.04"
+    runs-on: "ubuntu 24.04"
     permissions:
       contents: write
     steps:
@@ -17,7 +17,7 @@ jobs:
           while read -r cmd
           do
             eval sudo $cmd
-          done < <(Rscript -e 'cat(remotes::system_requirements("ubuntu", "22.04"), sep = "\n")')
+          done < <(Rscript -e 'cat(remotes::system_requirements("ubuntu", "24.04"), sep = "\n")')
       - name: Check out repository
         uses: actions/checkout@v4
 
