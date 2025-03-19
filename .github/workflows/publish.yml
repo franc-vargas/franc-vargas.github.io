@@ -11,8 +11,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Update packages
+        run: sudo apt update
+        
       - name: Install curl
-        run: sudo apt install -y libcurl4-openssl-dev
+        run: sudo apt install -y libcurl4-openssl
+        
       - name: Check out repository
         uses: actions/checkout@v4
 
