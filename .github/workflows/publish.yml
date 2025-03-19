@@ -11,13 +11,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Install system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          while read -r cmd
-          do
-            eval sudo $cmd
-          done < <(Rscript -e 'cat(remotes::system_requirements("ubuntu", "24.04"), sep = "\n")')
+      - name: Install curl
+        run: sudo apt install -y libcurl4-openssl-dev
       - name: Check out repository
         uses: actions/checkout@v4
 
