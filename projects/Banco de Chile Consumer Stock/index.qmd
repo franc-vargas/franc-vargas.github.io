@@ -1,0 +1,98 @@
+---
+title: "Forecasting: Banco de Chile's Consumer Stock"
+description: "Forecasting through classic SARIMA and SARIMAX models"
+author: "Francisco Vargas"
+date: "2025/03/19"
+categories: 
+  - R
+  - Statistics
+  - Time Series
+  - Forecasting
+execute:
+  echo: false
+  warning: false
+editor_options: 
+  chunk_output_type: console
+  
+---
+
+```{r}
+library(forecast)
+library(tidyverse)
+library(patchwork)
+
+ggplot2::theme_set(theme_bw())
+source("PLOT_FUNCS.R")
+
+
+base <- 
+  readr::read_rds("bChile_Joined.rds") |> 
+  mutate(
+    split.base = if_else(Periodo < date("2023-04-01"), "Train", 
+                         "Test"),
+    rownumber = row_number(),
+    lagged.Consumo = lag(Consumo, 12),
+    lagged.imacec = lag(imacec, 12)
+  )
+base$Periodo <- as_date(base$Periodo)
+base <- base[-c(1:12),]
+
+base <- 
+  base |> mutate(
+  nobreaks = if_else(Periodo < date("2023-05-01"), 1, 
+                       0))
+
+
+base$labels <- ifelse(base$split.base == "Test", 
+                      "Serie de prueba", 
+                      "Serie de ajuste")
+
+al.value <- 0.7
+
+colors <- c("Training Set" = "black", 
+            "Test set" = "darkred",
+            "SARIMAX" = "#3D7DDA",
+            "SARIMAX Lagged" = "#03367c",
+            "SARIMA" = "orange")
+
+colors2 <- c("Original Series" = "black", 
+            "SARIMAX" = "#3D7DDA",
+            "SARIMAX Lagged" = "#03367c",
+            "SARIMA" = "orange")
+
+
+train <- base|> filter(Periodo < date("2023-04-01"))
+test <- base |> filter(Periodo >= date("2023-04-01"))
+
+X_train.Lagged <- 
+  model.matrix(
+    Stock.BChile ~ I(log(lagged.Consumo))+ I(log(lagged.imacec)) , data = train)
+
+X_test.Lagged <- model.matrix(
+  Stock.BChile  ~ I(log(lagged.Consumo))+ I(log(lagged.imacec)) , data = test)
+
+Y <- ts(train$Stock.BChile, frequency = 3)
+
+m.sarimax.lagged <- Arima(Y, order = c(3,1,1), 
+                   seasonal=list(order=c(3,0,1), period=4),
+                   xreg = X_train.Lagged[,-1],
+                   lambda = 0)
+
+m.sarima <- Arima(Y, order = c(3,1,1), 
+                  seasonal=list(order=c(3,0,1), period=4),
+                  lambda = 0)
+predicciones.sarimax.lagged <- forecast(m.sarimax.lagged, h = 12, xreg = X_test.Lagged[,-1])
+predicciones.sarima <- forecast(m.sarima, h = 13)
+
+
+base$Modelo_sarima <- c(predicciones.sarima$fitted, predicciones.sarima$mean)
+base$Modelo_sarimax.lagged <- c(predicciones.sarimax.lagged$fitted, predicciones.sarimax.lagged$mean)
+
+serie_zoom <- customGraph(base = base, zoom.date = "2022-01-01")
+
+plotly::ggplotly(serie_zoom$grafico) |> 
+    plotly::layout(legend = list(orientation = 'h',xanchor = "center", x = 0.5, y= 1.1)) |> 
+  plotly::config(displayModeBar = F)
+
+```
+
