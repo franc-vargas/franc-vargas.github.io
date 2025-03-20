@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://franc-vargas.github.io/projects/Banco de Chile Consumer Stock/index.html</loc>
+    <lastmod>2025-03-19T23:52:26.173Z</lastmod>
+  </url>
+  <url>
     <loc>https://franc-vargas.github.io/about.html</loc>
-    <lastmod>2025-03-19T16:31:33.761Z</lastmod>
+    <lastmod>2025-03-19T23:52:26.172Z</lastmod>
   </url>
   <url>
     <loc>https://franc-vargas.github.io/index.html</loc>
-    <lastmod>2025-03-19T16:31:33.761Z</lastmod>
+    <lastmod>2025-03-19T23:52:26.173Z</lastmod>
+  </url>
+  <url>
+    <loc>https://franc-vargas.github.io/projects/index.html</loc>
+    <lastmod>2025-03-19T23:52:26.173Z</lastmod>
   </url>
 </urlset>

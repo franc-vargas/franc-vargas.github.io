@@ -9,8 +9,29 @@
   {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "franc-vargas.github.io",
+    "title": "Francisco Vargas",
     "section": "",
-    "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites.\n\n1 + 1\n\n[1] 2"
+    "text": "Pontificia Universidad Católica de Chile | Masters in Statistics | March 2023 - December 2024\nPontificia Universidad Católica de Chile | Diploma in Biostatistics | May 2022 - December 2022\nUniversidad Mayor | Veterinarian | March 2011 - December 2016"
+  },
+  {
+    "objectID": "index.html#education",
+    "href": "index.html#education",
+    "title": "Francisco Vargas",
+    "section": "",
+    "text": "Pontificia Universidad Católica de Chile | Masters in Statistics | March 2023 - December 2024\nPontificia Universidad Católica de Chile | Diploma in Biostatistics | May 2022 - December 2022\nUniversidad Mayor | Veterinarian | March 2011 - December 2016"
+  },
+  {
+    "objectID": "index.html#experience",
+    "href": "index.html#experience",
+    "title": "Francisco Vargas",
+    "section": "Experience",
+    "text": "Experience\nIQVIA | Data Management Analyst | June 2022 - Present\nVirbac Chile | Clinical Trials Assistant | May 2021 - May 2022\nMowi Chile S.A. | Saltwater Site Assistant | September 2019 - January 2021\nMulti X S.A. | Saltwater Site Assistant | June 2018 - September 2019\nAquaChile S.A. | Saltwater Site Assistant | March 2018 - June 2018"
+  },
+  {
+    "objectID": "projects/index.html",
+    "href": "projects/index.html",
+    "title": "Projects",
+    "section": "",
+    "text": "Order By\n       Default\n         \n          Projects\n        \n     \n  \n    \n      \n      \n    \n\n\n\n\n\nProjects\n\n\nDescription\n\n\nCategories\n\n\n\n\n\n\nForecasting: Banco de Chile’s Consumer Stock\n\n\nForecasting through classic SARIMA and SARIMAX models\n\n\nR, Statistics, Time Series, Forecasting\n\n\n\n\n\nNo matching items"
   }
 ]
