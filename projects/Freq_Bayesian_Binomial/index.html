@@ -166,8 +166,7 @@ window.Quarto = {
   <div class="quarto-categories">
     <div class="quarto-category">R</div>
     <div class="quarto-category">Statistics</div>
-    <div class="quarto-category">Time Series</div>
-    <div class="quarto-category">Forecasting</div>
+    <div class="quarto-category">Bayesian</div>
   </div>
   </div>
 
@@ -207,7 +206,7 @@ window.Quarto = {
 <p>Classic frequentist statistics is the main type of statistics that we’re taught at school and on most undergraduate programs, and for good reason. Frequentist statistics assume the parameter of interest is fixed and base their results on <em>long-run</em> events or samples. When creating a confidence interval at 95%, we’re saying that 95% of the intervals produced contain the true mean.</p>
 <p>Bayesian interpretation of probability on the other hand, assumes that the parameter itself is a random variable that comes from a probability distribution. The Bayesian statistician will have to assume a <em>prior</em> probability for the parameter, a likelihood function and that will give a <em>posterior</em> probability where we can calculate a posteriori Credible Interval for our parameter of interest.</p>
 <p>It is often said that the bayesian approach to statistics is equivalent to a frequentist approach with a flat or uniform prior but the question arises: Do bayesian Credible Intervals share the properties of frequentist Confidence Intervals, given a flat / uniform prior?</p>
-<p>The question arises from a post from Geoffrey Johnson, Director at Merck around January 2025.</p>
+<p>The question arises from a post and discussion with <a href="https://www.linkedin.com/in/geoffrey-s-johnson/">Geoffrey Johnson</a>, Director at Merck, around January 2025.</p>
 </section>
 <section id="simulation" class="level1">
 <h1>Simulation</h1>
@@ -240,7 +239,6 @@ p(\theta|x) \propto \frac{\theta^{\alpha + m -1}(1 - \theta)^{\beta + n - m - 1}
 </div>
 </div>
 <p>After running our 100.000 simulations, we can calculate the average coverage that we’ll get out of our test and realize that for small sample sizes, the frequentist approach has almost 3% extra coverage than we specified, which is expected for small samples.</p>
-<p>On the other hand, the uniform beta prior distribution has less than 90% coverage, due to the small sample size. This is one of the reasons why studying prior distribution behaviour and posterior properties through simulation is useful. If we want to achieve frequentist coverage levels, we would need to adjust our hyperparameters.</p>
 <div class="cell">
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
@@ -263,13 +261,12 @@ p(\theta|x) \propto \frac{\theta^{\alpha + m -1}(1 - \theta)^{\beta + n - m - 1}
 
 </div>
 </div>
+<p>On the other hand, the uniform beta prior distribution has less than 90% coverage, due to the small sample size. This is one of the reasons why studying prior distribution behaviour and posterior properties through simulation is useful. If we want to achieve frequentist coverage levels, we would need to adjust our hyperparameters.</p>
 </section>
 <section id="experiment" class="level2">
 <h2 class="anchored" data-anchor-id="experiment">Experiment</h2>
 <p>Now, with all previously said. We can study the behaviour of a single experiment and see how the bayesian posterior probability and the p value behave, when our theta is known, and we have a single experiment at <span class="math inline">\(n=10\)</span> and <span class="math inline">\(m=7\)</span>.</p>
 <p>We can see that with our fixed hyperparameters for the flat uniform beta, or the U-shaped beta the posterior probability changes We can also see that the frequentist interval tends to be wider than any of the two bayesian credible intervals.</p>
-<p>As a summary, frequentist intervals have the great property given through all the hard work and math behind their creation, where their coverage is often guaranteed when assumptions are met. Bayesian Intervals, do not have that property <em>but</em> certain prior distribution hyperparameters can induce enough uncertainty to match the coverage of a frequentist interval, but with a reduction in uncertainty around the parameter, as well as having the advantage of <em>exact</em> inference, due to the use of probability distributions.</p>
-<p>Notice how the U-shaped beta prior model peaks closer to the true value for <span class="math inline">\(\theta=0.74\)</span>, while maintaining same coverage and inducing less uncertainty.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -279,6 +276,9 @@ p(\theta|x) \propto \frac{\theta^{\alpha + m -1}(1 - \theta)^{\beta + n - m - 1}
 </div>
 </div>
 </div>
+<p>As a summary, frequentist intervals have the great property given through all the hard work and math behind their creation, where their coverage is often guaranteed when assumptions are met. Bayesian Intervals, do not have that property <em>but</em> certain prior distribution hyperparameters can induce enough uncertainty to match the coverage of a frequentist interval, but with a reduction in uncertainty around the parameter, as well as having the advantage of <em>exact</em> inference, due to the use of probability distributions.</p>
+<p>Notice how the U-shaped beta prior model peaks closer to the true value for <span class="math inline">\(\theta=0.74\)</span>, while maintaining same coverage and inducing less uncertainty.</p>
+<p>The code for the simulation can be found in my <a href="https://github.com/franc-vargas/franc-vargas.github.io/blob/main/projects/Freq_Bayesian_Binomial/Bayes%20Sim.R">GH Pages Repository</a>.</p>
 
 
 </section>
