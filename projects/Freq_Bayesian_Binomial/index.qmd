@@ -23,7 +23,7 @@ Bayesian interpretation of probability on the other hand, assumes that the param
 
 It is often said that the bayesian approach to statistics is equivalent to a frequentist approach with a flat or uniform prior but the question arises: Do bayesian Credible Intervals share the properties of frequentist Confidence Intervals, given a flat / uniform prior?
 
-The question arises from a post from Geoffrey Johnson, Director at Merck around January 2025.
+The question arises from a post and discussion with [Geoffrey Johnson](https://www.linkedin.com/in/geoffrey-s-johnson/), Director at Merck, around January 2025.
 
 # Simulation
 
@@ -67,14 +67,16 @@ flat_beta <-
   xlim(c(0,1)) + 
   geom_function(fun = dbeta, args = list(shape1 = 1, shape2 = 1)) + 
   labs(x = "x", y = "Beta(1, 1)",
-       caption = "Flat Uniform Beta")
+       caption = "Flat Uniform Beta") + 
+  theme_bw()
 
 u_beta <- 
   ggplot() + 
   xlim(c(0,1)) + 
   geom_function(fun = dbeta, args = list(shape1 = 0.1, shape2 = 0.1)) + 
   labs(x = "x", y = "Beta(0.1, 0.1)",
-       caption = "U shaped Beta")
+       caption = "U shaped Beta") + 
+  theme_bw()
 flat_beta / u_beta
 ```
 
@@ -165,8 +167,6 @@ get_intervals <-
 
 After running our 100.000 simulations, we can calculate the average coverage that we'll get out of our test and realize that for small sample sizes, the frequentist approach has almost 3% extra coverage than we specified, which is expected for small samples.
 
-On the other hand, the uniform beta prior distribution has less than 90% coverage, due to the small sample size. This is one of the reasons why studying prior distribution behaviour and posterior properties through simulation is useful. If we want to achieve frequentist coverage levels, we would need to adjust our hyperparameters.
-
 ```{r}
 iters <- 100000
 
@@ -221,17 +221,13 @@ coverage_means |>
                   "U-shaped Beta Coverage"))
 ```
 
-
+On the other hand, the uniform beta prior distribution has less than 90% coverage, due to the small sample size. This is one of the reasons why studying prior distribution behaviour and posterior properties through simulation is useful. If we want to achieve frequentist coverage levels, we would need to adjust our hyperparameters.
 
 ## Experiment
 
 Now, with all previously said. We can study the behaviour of a single experiment and see how the bayesian posterior probability and the p value behave, when our theta is known, and we have a single experiment at $n=10$ and $m=7$.
 
 We can see that with our fixed hyperparameters for the flat uniform beta, or the U-shaped beta the posterior probability changes We can also see that the frequentist interval tends to be wider than any of the two bayesian credible intervals.
-
-As a summary, frequentist intervals have the great property given through all the hard work and math behind their creation, where their coverage is often guaranteed when assumptions are met. Bayesian Intervals, do not have that property _but_ certain prior distribution hyperparameters can induce enough uncertainty to match the coverage of a frequentist interval, but with a reduction in uncertainty around the parameter, as well as having the advantage of _exact_ inference, due to the use of probability distributions.
-
-Notice how the U-shaped beta prior model peaks closer to the true value for $\theta=0.74$, while maintaining same coverage and inducing less uncertainty.
 
 ```{r}
 n <- 10
@@ -356,5 +352,8 @@ experiment + (sim_confidence / sim_unif_bayes / sim_hierc_bayes)
 
 ```
 
+As a summary, frequentist intervals have the great property given through all the hard work and math behind their creation, where their coverage is often guaranteed when assumptions are met. Bayesian Intervals, do not have that property _but_ certain prior distribution hyperparameters can induce enough uncertainty to match the coverage of a frequentist interval, but with a reduction in uncertainty around the parameter, as well as having the advantage of _exact_ inference, due to the use of probability distributions.
 
+Notice how the U-shaped beta prior model peaks closer to the true value for $\theta=0.74$, while maintaining same coverage and inducing less uncertainty.
 
+The code for the simulation can be found in my [GH Pages Repository](https://github.com/franc-vargas/franc-vargas.github.io/blob/main/projects/Freq_Bayesian_Binomial/Bayes%20Sim.R).
