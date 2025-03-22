@@ -1,0 +1,360 @@
+---
+title: "Bayesian vs Frequentist Intervals, Binomial comparison"
+description: "Evaluation of long-run properties of a Binomial test, from a Bayesian and Frequentist perspective"
+author: "Francisco Vargas"
+date: "2025/03/19"
+categories: 
+  - R
+  - Statistics
+  - Time Series
+  - Forecasting
+execute:
+  echo: false
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Context
+
+Classic frequentist statistics is the main type of statistics that we're taught at school and on most undergraduate programs, and for good reason. Frequentist statistics assume the parameter of interest is fixed and base their results on _long-run_ events or samples. When creating a confidence interval at 95%, we're saying that 95% of the intervals produced contain the true mean.
+
+Bayesian interpretation of probability on the other hand, assumes that the parameter itself is a random variable that comes from a probability distribution. The Bayesian statistician will have to assume a _prior_ probability for the parameter, a likelihood function and that will give a _posterior_ probability where we can calculate a posteriori Credible Interval for our parameter of interest.
+
+It is often said that the bayesian approach to statistics is equivalent to a frequentist approach with a flat or uniform prior but the question arises: Do bayesian Credible Intervals share the properties of frequentist Confidence Intervals, given a flat / uniform prior?
+
+The question arises from a post from Geoffrey Johnson, Director at Merck around January 2025.
+
+# Simulation
+
+We will consider $k=100.000$ simulations, our parameter for the simulation will be $\theta = 0.74$, and our sample size $n=10$ for each simulation.
+
+## Model specification and  interval calculations
+
+For the frequentist approach, we will consider an exact binomial test, which is a test of proportions for small samples. If our sample was large enough, we could use Pearson's $\chi^2$ test.
+
+For the bayesian approach, we will consider 2 alternatives. A Bayesian with $\theta \sim Beta(1,1)$ which is flat, and an alternative with $\theta \sim Beta(0.1,0.1)$ which is U shaped.
+
+To elaborate on the posterior probability, we're saying:
+
+$$
+p(\theta|x) \propto p(x|\theta)p(\theta)
+$$
+
+Which is to say that our joint posterior probability is equal to our likelihood function times our prior for the parameter.
+
+In the case of the Beta-Binomial model (Beta prior, Binomial likelihood), the Beta distribution is a conjugate prior for the Binomial, and we get a Beta distribution as a posterior distribution.
+
+As a memory refresher, and considering $m$ successes the binomial likelihood looks like $\binom{n}{m}\theta^m(1 - \theta)^{n-m}$, and the beta distribution as our prior would be $\frac{\theta^{\alpha-1}(1 - \theta)^{\beta-1}}{B(\alpha, \beta)}$, which translates to our beta joint posterior: 
+
+$$
+p(\theta|x) \propto \frac{\theta^{\alpha + m -1}(1 - \theta)^{\beta + n - m - 1}}{B(\alpha + m, \beta + n - m)}
+$$
+
+Where $B(\alpha, \beta)$ is the Beta function.
+
+Notice our hyperparameters $\alpha$ and $\beta$, which are set up by the bayesian statistician. In our two scenarios, they will take the values 1 and 0.1 each.
+
+For this simulation, we'll consider a 90% Interval, which means our threshold for a two sided interval is 0.05 (instead of 0.5/2, which would be 95% confidence)
+
+This are our 2 prior distributions for our parameter $\theta$.
+
+```{r}
+library(ggplot2)
+library(patchwork)
+flat_beta <- 
+  ggplot() + 
+  xlim(c(0,1)) + 
+  geom_function(fun = dbeta, args = list(shape1 = 1, shape2 = 1)) + 
+  labs(x = "x", y = "Beta(1, 1)",
+       caption = "Flat Uniform Beta")
+
+u_beta <- 
+  ggplot() + 
+  xlim(c(0,1)) + 
+  geom_function(fun = dbeta, args = list(shape1 = 0.1, shape2 = 0.1)) + 
+  labs(x = "x", y = "Beta(0.1, 0.1)",
+       caption = "U shaped Beta")
+flat_beta / u_beta
+```
+
+
+```{r}
+coverage <-  
+  function(x ){
+  lower <- x[1]
+  upper <- x[2]
+
+  lower <- round(lower, 3)
+  upper <- round(upper, 3)
+  ifelse(lower <= 0.74 & 0.74 <= upper, 1, 0)
+}
+
+interval_beta <- function(y, 
+                          n = 10,
+                          alpha = 0.05,
+                          a = 1, 
+                          b = 1, 
+                          hierc = T){
+  if(hierc){
+    lower <- qbeta(alpha, a + y, b + n - y)
+    upper <- qbeta(1 - alpha, a + y, b + n - y)
+  }else{
+    lower <- qbeta(alpha, 1 + y, 1 + n - y)
+    upper <- qbeta(1 - alpha, 1 + y, 1 + n - y)
+    
+  }
+  
+  c(lower, upper)
+}
+
+get_intervals <-
+  function(x = NULL, 
+           theta = NULL){
+    if(is.null(x)) stop("Please add a proper vector of successes!")
+    if(is.null(theta)) stop("Please add a proper vector for theta!")
+    x <- matrix(x, ncol = 1)
+    
+    lower_conf <- apply(x, MARGIN = 1,
+                       FUN = function(x){
+                         x <- 1  - pbinom(x - 1,
+                                     size = 10,
+                                     prob = theta)
+                         x <- theta[round(x,3) <= 0.05]
+                         max(x)
+                         })
+    
+    upper_conf <- apply(x, MARGIN = 1,
+                       FUN = function(x){
+                        x <-  pbinom(x,
+                                size = 10,
+                                prob = theta)
+                        x <- theta[round(x,3) <= 0.05]
+                        
+                        if(is.infinite(min(x))){0}else{min(x)}  
+                         
+                         })
+   
+
+    bayes_uniform <- interval_beta(x,
+                                   hierc = F)
+    bayes_hierarchical <- interval_beta(x,
+                                        a = a,
+                                        b = b, 
+                                        hierc = T)
+    
+    aux <- c(lower_conf, 
+             upper_conf, 
+             bayes_uniform,
+             bayes_hierarchical)
+    
+    aux <- ifelse(is.na(aux), 1, aux)
+    aux <- matrix(aux, ncol = 6)
+    colnames(aux) <- c("CI_L", 
+                       "CI_H",
+                       "Cred_Unif_L",
+                       "Cred_Unif_H",
+                       "Cred_Hier_L",
+                       "Cred_Hier_H")
+    aux
+  }
+
+
+
+```
+
+After running our 100.000 simulations, we can calculate the average coverage that we'll get out of our test and realize that for small sample sizes, the frequentist approach has almost 3% extra coverage than we specified, which is expected for small samples.
+
+On the other hand, the uniform beta prior distribution has less than 90% coverage, due to the small sample size. This is one of the reasons why studying prior distribution behaviour and posterior properties through simulation is useful. If we want to achieve frequentist coverage levels, we would need to adjust our hyperparameters.
+
+```{r}
+iters <- 100000
+
+theta_vec <- seq(from = 0, to = 1, by = 0.0005)
+n = 10
+
+a = 0.1
+b = 0.1
+
+sims <- 
+  apply(matrix(1:iters, ncol = 1), 
+        MARGIN = 1,
+      FUN = function(x){
+        set.seed(x)
+        
+
+        x <- matrix(c(x, sum(rbinom(n, 1, prob  = 0.74))), nrow = 2)
+        x
+      }, 
+      simplify = T)|>t()
+
+colnames(sims) <- c("sim", "successes")
+
+intervals <- get_intervals(x = sims[,2], theta = theta_vec)
+
+sims <- cbind(sims, intervals)
+
+coverage_values <-
+  apply(sims[,3:8],
+        1,
+        function(x){
+          covg_freq <- coverage(x[1:2])
+          covg_unif <- coverage(x[3:4])
+          covg_hierc <- coverage(x[5:6])
+          c(covg_freq, covg_unif, covg_hierc)
+          })|> t()
+
+colnames(coverage_values) <- c("covg_freq", "covg_unif", "covg_hierc")
+
+sims <- cbind(sims, coverage_values)
+
+coverage_means <- cbind(mean(sims[,"covg_freq"]), mean(sims[,"covg_unif"]), mean(sims[,"covg_hierc"]))
+
+colnames(coverage_means) <- c("frequentist", "uniform", "u_shape")
+coverage_means <- data.frame(coverage_means)
+
+coverage_means |> 
+  knitr::kable(
+    format = "html",
+    col.names = c("Frequentist Coverage",
+                  "Flat Beta Coverage",
+                  "U-shaped Beta Coverage"))
+```
+
+
+
+## Experiment
+
+Now, with all previously said. We can study the behaviour of a single experiment and see how the bayesian posterior probability and the p value behave, when our theta is known, and we have a single experiment at $n=10$ and $m=7$.
+
+We can see that with our fixed hyperparameters for the flat uniform beta, or the U-shaped beta the posterior probability changes We can also see that the frequentist interval tends to be wider than any of the two bayesian credible intervals.
+
+As a summary, frequentist intervals have the great property given through all the hard work and math behind their creation, where their coverage is often guaranteed when assumptions are met. Bayesian Intervals, do not have that property _but_ certain prior distribution hyperparameters can induce enough uncertainty to match the coverage of a frequentist interval, but with a reduction in uncertainty around the parameter, as well as having the advantage of _exact_ inference, due to the use of probability distributions.
+
+Notice how the U-shaped beta prior model peaks closer to the true value for $\theta=0.74$, while maintaining same coverage and inducing less uncertainty.
+
+```{r}
+n <- 10
+x <- 7
+
+
+posterior_lower <- pbeta(theta_vec, 
+                         shape1 = 1 + x, 
+                         shape2 = 1 + n - x)
+
+
+posterior_upper <- 1 - pbeta(theta_vec, 
+                             shape1 = 1 + x, 
+                             shape2 = 1 + n - x)
+
+a_0 = 0.5
+b_0 = 0.5
+
+posterior_lower_hierc <- pbeta(theta_vec, 
+                         shape1 = a + x, 
+                         shape2 = b + n - x)
+
+
+posterior_upper_hierc <- 1 - pbeta(theta_vec, 
+                             shape1 = a + x, 
+                             shape2 = b + n - x)
+
+conf_lower <- 1 - pbinom(x-1, size = n, prob =theta_vec )
+conf_upper <- pbinom(x, size = n, prob = theta_vec  )
+posterior_interval <- ifelse(posterior_lower >= posterior_upper,
+                             posterior_upper, 
+                             posterior_lower)
+
+posterior_interval_hierc <- 
+  ifelse(posterior_lower_hierc >= posterior_upper_hierc,
+         posterior_upper_hierc, 
+         posterior_lower_hierc)
+
+conf_interval <- ifelse(conf_lower >= conf_upper,
+                        conf_upper, 
+                        conf_lower)
+text_size <- 9
+
+experiment<- 
+  ggplot() + 
+  geom_path(aes(x = theta_vec, 
+                y = posterior_interval,
+                colour = "Cred. Uniform"), linewidth = 1.1,
+            alpha = 0.5) + 
+  geom_path(aes(x = theta_vec, y = conf_interval,
+                colour = "Conf. Int"), linewidth = 1.1,
+            alpha = 0.5) + 
+  geom_path(aes(x = theta_vec, 
+                y = posterior_interval_hierc,
+                colour = "Cred. U-Shaped"), linewidth = 1.1,
+            alpha = 0.5) + 
+  geom_vline(xintercept = c(0.645,0.742),
+             linewidth = 1) + 
+  theme_bw() + 
+  scale_colour_manual(values = c("Cred. Uniform" = "darkred",
+                                 "Cred. U-Shaped" = "pink",
+                                 "Conf. Int" = "darkgreen")) + 
+  labs(x = expression(theta), y = "Posterior Probability / p value",
+       colour = "Interval type" ) +
+   theme(legend.position = "top",
+        text = element_text(size = text_size))+
+  ylim(0,1)
+  
+
+sim_confidence <- 
+  ggplot() + 
+  geom_errorbar(aes(x = 1:iters, 
+                    ymin =sims[,"CI_L"],
+                    ymax =sims[,"CI_H"],
+                    colour = factor(sims[,"covg_freq"]))) + 
+  geom_hline(yintercept = 0.74, colour = "darkred",
+             linewidth = 1.1) +
+  ylim(0,1) + 
+  labs(x = "Simulation N°",
+       y = expression(theta~"interval"),
+       colour = "Coverage",
+       caption = "Inverse exact binomial test")+ 
+  theme_bw() + 
+  theme(legend.position = "top",
+        text = element_text(size = text_size))
+
+sim_unif_bayes <-
+  ggplot() + 
+  geom_errorbar(aes(x = 1:iters,
+                    ymin =sims[,"Cred_Unif_L"],
+                    ymax =sims[,"Cred_Unif_H"],
+                    colour = factor(sims[,"covg_unif"]))
+                ) + 
+  geom_hline(yintercept = 0.74, 
+             colour = "darkred", linewidth = 1.1)+
+  ylim(0,1) + 
+  labs(x = "Simulation N°", y = expression(theta~"interval"),
+       colour = "Coverage",
+       caption = "Flat Beta(1,1) prior")+ 
+  theme_bw()+ 
+  theme(legend.position = "top",
+        text = element_text(size = text_size))
+  
+
+sim_hierc_bayes <- 
+  ggplot() + 
+  geom_errorbar(aes(x = 1:iters,
+                    ymin =sims[,"Cred_Hier_L"],
+                    ymax =sims[,"Cred_Hier_H"],
+                    colour = factor(sims[,"covg_hierc"]))
+                ) + 
+  geom_hline(yintercept = 0.74, 
+             colour = "darkred", linewidth = 1.1)+
+  ylim(0,1)  + 
+  labs(x = "Simulation N°", y = expression(theta~"interval"),
+       colour = "Coverage",
+       caption = bquote('Beta'~(.(a)~","~.(b))~~"prior"))+ 
+  theme_bw()+ 
+  theme(legend.position = "top",
+        text = element_text(size = text_size))
+experiment + (sim_confidence / sim_unif_bayes / sim_hierc_bayes)
+
+```
+
+
+
