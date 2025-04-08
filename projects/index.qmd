@@ -3,7 +3,7 @@ title: "Projects"
 listing: 
   contents: /
   type: table
-  fields: [title, description, categories]
+  fields: [title, date, description, categories]
   field-display-names: 
     title: "Projects"
     Categories: "Skills"
