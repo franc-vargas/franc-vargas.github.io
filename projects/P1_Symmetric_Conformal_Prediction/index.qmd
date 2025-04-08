@@ -3,6 +3,7 @@ title: "Conformal Prediction Part 1: Symmetric intervals"
 description: "Creation of Conformal intervals for uncertainty quantifiction in Machine Learning, example using simulated data"
 author: "Francisco Vargas"
 date: "2025/04/07"
+code-fold: true
 categories: 
   - R
   - Statistics
@@ -51,7 +52,7 @@ library(neuralnet)
 library(ggplot2)
 ```
 
-We'll also create a function to simulate data. This function is taken from Tidymodel's Conformal Prediction post, but we won't be using any other function from the Tidymodels framework.
+We'll also create a function to simulate data. This function is taken from [Tidymodel's Conformal Prediction post](https://www.tidymodels.org/learn/models/conformal-regression/), but we won't be using any function from the Tidymodels framework.
 
 ```{r}
 make_data <- function(n, std_dev = 1 / 5) {
@@ -77,7 +78,14 @@ test_data <- make_data(10000)
 And, our training data looks like this! As you can see, a simple linear regression will probably not work. We could do something using smooth splines, or maybe a tree-based method but I'll be using a neural network to use a commonly used ML model.
 
 ```{r}
+#| echo: false
 theme_set(theme_minimal())
+
+```
+
+
+```{r}
+#| echo: false
 train_data |> 
 ggplot2::ggplot(ggplot2::aes(x, y)) + 
   ggplot2::geom_point(alpha = 1 / 10)
@@ -87,8 +95,11 @@ ggplot2::ggplot(ggplot2::aes(x, y)) +
 Our function $\hat f_{n_1}(x_i), \ i \in D_1$, trained predicts the overall mean well enough.
 
 ```{r}
-#| echo: true
 m_nnet <- neuralnet(y ~ x , train_data, hidden = 4)
+```
+
+```{r}
+#| echo: false
 
 ggplot2::ggplot(ggplot2::aes(x, y), data = train_data) + 
   ggplot2::geom_point(alpha = 1 / 10)  +
@@ -101,18 +112,21 @@ ggplot2::ggplot(ggplot2::aes(x, y), data = train_data) +
 
 ```
 
-To create our prediction intervals, we need to define a 'distance' or 'score' function for our calibration set residuals $R_i$, $i \in D_2$. We can use any negatively oriented function (where lower values are better!). I'll use the absolute difference: $R_i = |Y_i - \hat f_{n_1}(X_i)|,\ i \in D_2$ since it's easy to understand, and it maintains the scale of the original problem. 
+
+To create our prediction intervals, we need to define a 'distance' or 'score' function for our calibration set residuals $R_i$, $i \in D_2$. We can use any negatively oriented function (where lower values are better!). 
+
+We'll be using the absolute difference: $R_i = |Y_i - \hat f_{n_1}(X_i)|,\ i \in D_2$ for this example since it's easy to understand, and it maintains the scale of the original problem. 
 
 Our $\alpha$ level for our intervals will be 0.05, and our conformal quantile is calculated $\hat q_{n_2} = \lceil(1 - \alpha)(n_2 + 1)\rceil$.
 
-So, since calibration set has 1000 data points, the rank we're looking for would be: `r ceiling((1 - 0.05) * (nrow(cal_data)+1))`, since this is an index, we'll need to sort our residuals, and look for the index. 
+So, since calibration set has 1.000 data points, the rank we're looking for would be: `r ceiling((1 - 0.05) * (nrow(cal_data)+1))`, since this is rank, we'll need to find the residual that matches this particular rank. 
 
 We could alternatively divide this index by the number of rows ($n_2$) of our calibration set, and look for the quantile which you'll see gives a very similar result.
 
 ```{r}
-
 # Fit model to calibration set
 cal_fit <- predict(m_nnet, cal_data[,1]) 
+
 # Calculate score
 res <- abs(cal_fit - cal_data[,"y"])
 # Find the R_i
@@ -123,12 +137,19 @@ rank_value <- res$y[rank(res) == R_i]
 # Quantile method
 quantile_value <- quantile(res$y, R_i/nrow(res))
 
-cbind(rank_value, 
-      quantile_value) |> 
-  knitr::kable(col.names = c("Rank method",
-                             "Quantile method"),
-               row.names = F,
-               format = "html")
+
+```
+
+```{r}
+#| echo: false
+
+quantile_rank <- rbind(rank_value, 
+                       quantile_value) |> as.data.frame()
+colnames(quantile_rank) <- "value"
+quantile_rank$method <- c("Rank method", "Quantile method")
+  quantile_rank[,2:1] |> 
+    knitr::kable(col.names = c("Method", "Value"),
+               row.names = F)
 ```
 
 Now, the beauty of this is that the conformal quantile/rank we just calculated, will give us a guaranteed $\alpha$ level prediction interval as $n \rightarrow \infty$ in our calibration set, so the bigger our calibration set the closer we'll get to that coverage. Thus, it's often common to split around 1000 observations or more, which means this method is better suited for big data than small sample sizes. 
@@ -136,7 +157,10 @@ Now, the beauty of this is that the conformal quantile/rank we just calculated, 
 ```{r}
 # Fit to test data
 test_fit <- predict(m_nnet, test_data[,1])
+```
 
+```{r}
+#| echo: false
 # Plot the symmetric intervals
 ggplot2::ggplot(aes(x, y), data = test_data) + 
   ggplot2::geom_point(alpha = 1 / 10)  +
@@ -146,9 +170,9 @@ ggplot2::ggplot(aes(x, y), data = test_data) +
   theme_bw()
 ```
 
-So, using our test set of 10.000 observations, we can see that the coverage is actually 95 %.
+So, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 %.
 
-This is extremely relevant, since previously most Machine Learning methods lacked a reliable way to measure the uncertainty of their methods, and relying on asymptotic normality does not always make sense.
+This is extremely relevant, since previously most Machine Learning methods lacked a reliable way to measure the uncertainty of their methods, and relying on asymptotic normality does not always make sense for a problem.
 
 ```{r}
 # Create dataframe with relevant data
@@ -161,8 +185,7 @@ intervals <- data.frame(lower = test_fit - rank_value,
 intervals |> 
   dplyr::mutate(coverage = ifelse(y <= upper & y >= lower, 1 , 0)) |> 
   summarise(coverage = round(sum(coverage)/ length(coverage), 2)) |> 
-  knitr::kable(col.names = c("Coverage"),
-               format = "html")
+  knitr::kable(col.names = c("Coverage"))
 
 ```
 
