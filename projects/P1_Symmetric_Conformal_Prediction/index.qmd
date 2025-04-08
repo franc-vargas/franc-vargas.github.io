@@ -1,0 +1,169 @@
+---
+title: "Conformal Prediction Part 1: Symmetric intervals"
+description: "Creation of Conformal intervals for uncertainty quantifiction in Machine Learning, example using simulated data"
+author: "Francisco Vargas"
+date: "2025/04/07"
+categories: 
+  - R
+  - Statistics
+  - Machine Learning
+  - Conformal Prediction
+  - Uncertainty Quantification
+execute:
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+
+This is the first part of a small series to show how to implement Conformal Prediction intervals in R from scratch, without relying in frameworks (such as Tidymodels) or other specific packages. Initially, quick and easy reproducible posts will be done, and later I'll use some real-world examples.
+
+This particular case is based on a regression problem, where we need a symmetric interval with a 95% coverage guarantee around a non-linear estimator of the expected value, using a simple neural network.
+
+The focus of this series is not on the complexity of the methods or models, but rather to exemplify how to implement conformal intervals with a specific guarantee.
+
+## About Conformal Prediction
+
+Conformal Prediction (CP) is an uncertainty quantification framework or techniques used in Machine Learning problems where classical asymptotic theory does not hold too well due to the type of models being used. The most common use is split conformal prediction, where from our training data $D$ we split it into $D_1$ proper training data and $D_2$ for calibration data.
+
+The objective is to create an interval with an $\alpha$ coverage level guarantee that is distribution-free, using a function $\hat f_n(x)$, where we'll predict the value of $y$ at $x$. This could be the conditional expectation of a linear model, generalized linear model, a spline, a random forest or even a bayesian model. It could be any function.
+
+Some nomenclature to be consistent:
+
++ Training data: $D_1$
+
++ Calibration data: $D_2$
+
++ Function (or adjusted model): $\hat f_{n_1}(x)$
+
++ Residual: $R_i$
+
+Some questions might arise, such as: Why not just use the residuals from the training set to build our intervals? Well, the quick answer to that is that since the residuals used to build the model, they are not _independent_ with respect to our model, so the prediction intervals we build from those residuals might not give us the coverage guarantee we want.
+
+For this problem, we can use around 1000 data points from a calibration set (hence, the name split conformal prediction). 
+
+We'll use the following libraries for this example:
+
+```{r}
+library(dplyr)
+library(neuralnet)
+library(ggplot2)
+```
+
+We'll also create a function to simulate data. This function is taken from Tidymodel's Conformal Prediction post, but we won't be using any other function from the Tidymodels framework.
+
+```{r}
+make_data <- function(n, std_dev = 1 / 5) {
+  tibble::tibble(x = runif(n, min = -1))  |> 
+    dplyr::mutate(
+      y = (x^3) + 2 * exp(-6 * (x - 0.3)^2),
+      y = y + rnorm(n, sd = std_dev)
+    )
+}
+```
+
+I will pre-create our different sets: training, calibration, and test.
+
+```{r}
+set.seed(8383)
+
+train_data <- make_data(10000)
+cal_data <- make_data(1000)
+test_data <- make_data(10000)
+
+```
+
+And, our training data looks like this! As you can see, a simple linear regression will probably not work. We could do something using smooth splines, or maybe a tree-based method but I'll be using a neural network to use a commonly used ML model.
+
+```{r}
+theme_set(theme_minimal())
+train_data |> 
+ggplot2::ggplot(ggplot2::aes(x, y)) + 
+  ggplot2::geom_point(alpha = 1 / 10)
+
+```
+
+Our function $\hat f_{n_1}(x_i), \ i \in D_1$, trained predicts the overall mean well enough.
+
+```{r}
+#| echo: true
+m_nnet <- neuralnet(y ~ x , train_data, hidden = 4)
+
+ggplot2::ggplot(ggplot2::aes(x, y), data = train_data) + 
+  ggplot2::geom_point(alpha = 1 / 10)  +
+  ggplot2::geom_point(aes(x, 
+                          m_nnet$net.result[[1]], colour = "Prediction"),
+                      alpha = 2 / 10) + 
+  scale_colour_manual(values = c("Prediction" = "darkred")) + 
+  labs(colour = "") + 
+  theme(legend.position = "top")
+
+```
+
+To create our prediction intervals, we need to define a 'distance' or 'score' function for our calibration set residuals $R_i$, $i \in D_2$. We can use any negatively oriented function (where lower values are better!). I'll use the absolute difference: $R_i = |Y_i - \hat f_{n_1}(X_i)|,\ i \in D_2$ since it's easy to understand, and it maintains the scale of the original problem. 
+
+Our $\alpha$ level for our intervals will be 0.05, and our conformal quantile is calculated $\hat q_{n_2} = \lceil(1 - \alpha)(n_2 + 1)\rceil$.
+
+So, since calibration set has 1000 data points, the rank we're looking for would be: `r ceiling((1 - 0.05) * (nrow(cal_data)+1))`, since this is an index, we'll need to sort our residuals, and look for the index. 
+
+We could alternatively divide this index by the number of rows ($n_2$) of our calibration set, and look for the quantile which you'll see gives a very similar result.
+
+```{r}
+
+# Fit model to calibration set
+cal_fit <- predict(m_nnet, cal_data[,1]) 
+# Calculate score
+res <- abs(cal_fit - cal_data[,"y"])
+# Find the R_i
+R_i <- ceiling(0.95 * (nrow(cal_data)+1))
+
+# Rank method
+rank_value <- res$y[rank(res) == R_i]
+# Quantile method
+quantile_value <- quantile(res$y, R_i/nrow(res))
+
+cbind(rank_value, 
+      quantile_value) |> 
+  knitr::kable(col.names = c("Rank method",
+                             "Quantile method"),
+               row.names = F,
+               format = "html")
+```
+
+Now, the beauty of this is that the conformal quantile/rank we just calculated, will give us a guaranteed $\alpha$ level prediction interval as $n \rightarrow \infty$ in our calibration set, so the bigger our calibration set the closer we'll get to that coverage. Thus, it's often common to split around 1000 observations or more, which means this method is better suited for big data than small sample sizes. 
+
+```{r}
+# Fit to test data
+test_fit <- predict(m_nnet, test_data[,1])
+
+# Plot the symmetric intervals
+ggplot2::ggplot(aes(x, y), data = test_data) + 
+  ggplot2::geom_point(alpha = 1 / 10)  +
+  ggplot2::geom_point(aes(x, test_fit), col = "darkred") + 
+  geom_ribbon(aes(x = x, ymin = test_fit-rank_value,
+                  ymax = test_fit + rank_value), alpha = 0.3) + 
+  theme_bw()
+```
+
+So, using our test set of 10.000 observations, we can see that the coverage is actually 95 %.
+
+This is extremely relevant, since previously most Machine Learning methods lacked a reliable way to measure the uncertainty of their methods, and relying on asymptotic normality does not always make sense.
+
+```{r}
+# Create dataframe with relevant data
+intervals <- data.frame(lower = test_fit - rank_value,
+                        upper = test_fit + rank_value,
+                        pred = test_fit,
+                        y = test_data$y)
+
+# Calculate coverage
+intervals |> 
+  dplyr::mutate(coverage = ifelse(y <= upper & y >= lower, 1 , 0)) |> 
+  summarise(coverage = round(sum(coverage)/ length(coverage), 2)) |> 
+  knitr::kable(col.names = c("Coverage"),
+               format = "html")
+
+```
+
+
