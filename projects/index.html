@@ -78,7 +78,7 @@ ul.task-list li input[type="checkbox"] {
     }
 
     const options = {
-      valueNames: ['listing-title','listing-description','listing-categories',{ data: ['index'] },{ data: ['categories'] },{ data: ['listing-date-sort'] },{ data: ['listing-title-sort'] }],
+      valueNames: ['listing-title','listing-date','listing-description','listing-categories',{ data: ['index'] },{ data: ['categories'] },{ data: ['listing-date-sort'] },{ data: ['listing-title-sort'] }],
       
       searchColumns: ["listing-date","listing-title","listing-author"],
     };
@@ -207,6 +207,12 @@ window.Quarto = {
      <select id="listing-listing-sort" class="form-select" aria-label="Order By" onchange="window['quarto-listings']['listing-listing'].sort(this.options[this.selectedIndex].value, { order: this.options[this.selectedIndex].getAttribute('data-direction')})">
        <option value="" disabled="" selected="" hidden="">Order By</option>
        <option value="index" data-direction="asc">Default</option>
+         <option value="listing-date-sort" data-direction="asc">
+          Date - Oldest
+        </option>
+         <option value="listing-date-sort" data-direction="desc">
+          Date - Newest
+        </option>
          <option value="listing-title-sort" data-direction="asc">
           Projects
         </option>
@@ -224,6 +230,9 @@ window.Quarto = {
 <a class="sort" data-sort="listing-title-sort" onclick="if (this.classList.contains('sort-asc')) { this.classList.add('sort-desc'); this.classList.remove('sort-asc') } else { this.classList.add('sort-asc'); this.classList.remove('sort-desc')} return false;">Projects</a>
 </th>
 <th>
+<a class="sort" data-sort="listing-date-sort" onclick="if (this.classList.contains('sort-asc')) { this.classList.add('sort-desc'); this.classList.remove('sort-asc') } else { this.classList.add('sort-asc'); this.classList.remove('sort-desc')} return false;">Date</a>
+</th>
+<th>
 Description
 </th>
 <th>
@@ -232,9 +241,12 @@ Categories
 </tr>
 </thead>
 <tbody class="list">
-<tr data-index="0" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNCYXllc2lhbg==" data-listing-date-sort="1742342400000" data-listing-file-modified-sort="1744078917409" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="18" data-listing-word-count-sort="3535" data-listing-title-sort="Bayesian vs Frequentist Intervals, Binomial comparison" data-listing-filename-sort="index.qmd">
+<tr data-index="0" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNCYXllc2lhbg==" data-listing-date-sort="1742342400000" data-listing-file-modified-sort="1744081254967" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="18" data-listing-word-count-sort="3535" data-listing-title-sort="Bayesian vs Frequentist Intervals, Binomial comparison" data-listing-filename-sort="index.qmd">
 <td>
 <a href="../projects/Freq_Bayesian_Binomial/index.html" class="title listing-title">Bayesian vs Frequentist Intervals, Binomial comparison</a>
+</td>
+<td>
+<span class="listing-date">Mar 19, 2025</span>
 </td>
 <td>
 <span class="listing-description">Evaluation of long-run properties of a Binomial test, from a Bayesian and Frequentist perspective</span>
@@ -243,9 +255,12 @@ Categories
 <span class="listing-categories">R, Statistics, Bayesian</span>
 </td>
 </tr>
-<tr data-index="1" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNNYWNoaW5lJTIwTGVhcm5pbmclMkNDb25mb3JtYWwlMjBQcmVkaWN0aW9uJTJDVW5jZXJ0YWludHklMjBRdWFudGlmaWNhdGlvbg==" data-listing-date-sort="1743984000000" data-listing-file-modified-sort="1744078917409" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="6" data-listing-word-count-sort="1186" data-listing-title-sort="Conformal Prediction Part 1: Symmetric intervals" data-listing-filename-sort="index.qmd">
+<tr data-index="1" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNNYWNoaW5lJTIwTGVhcm5pbmclMkNDb25mb3JtYWwlMjBQcmVkaWN0aW9uJTJDVW5jZXJ0YWludHklMjBRdWFudGlmaWNhdGlvbg==" data-listing-date-sort="1743984000000" data-listing-file-modified-sort="1744081254967" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="6" data-listing-word-count-sort="1169" data-listing-title-sort="Conformal Prediction Part 1: Symmetric intervals" data-listing-filename-sort="index.qmd">
 <td>
 <a href="../projects/P1_Symmetric_Conformal_Prediction/index.html" class="title listing-title">Conformal Prediction Part 1: Symmetric intervals</a>
+</td>
+<td>
+<span class="listing-date">Apr 7, 2025</span>
 </td>
 <td>
 <span class="listing-description">Creation of Conformal intervals for uncertainty quantifiction in Machine Learning, example using simulated data</span>
@@ -254,9 +269,12 @@ Categories
 <span class="listing-categories">R, Statistics, Machine Learning, Conformal Prediction, Uncertainty Quantification</span>
 </td>
 </tr>
-<tr data-index="2" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNUaW1lJTIwU2VyaWVzJTJDRm9yZWNhc3Rpbmc=" data-listing-date-sort="1742342400000" data-listing-file-modified-sort="1744078917408" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1347" data-listing-title-sort="Forecasting: Banco de Chile's Consumer Stock" data-listing-filename-sort="index.qmd">
+<tr data-index="2" data-categories="UiUyQ1N0YXRpc3RpY3MlMkNUaW1lJTIwU2VyaWVzJTJDRm9yZWNhc3Rpbmc=" data-listing-date-sort="1742342400000" data-listing-file-modified-sort="1744081254966" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1347" data-listing-title-sort="Forecasting: Banco de Chile's Consumer Stock" data-listing-filename-sort="index.qmd">
 <td>
 <a href="../projects/Banco de Chile Consumer Stock/index.html" class="title listing-title">Forecasting: Banco de Chile’s Consumer Stock</a>
+</td>
+<td>
+<span class="listing-date">Mar 19, 2025</span>
 </td>
 <td>
 <span class="listing-description">Forecasting through classic SARIMA and SARIMAX models</span>

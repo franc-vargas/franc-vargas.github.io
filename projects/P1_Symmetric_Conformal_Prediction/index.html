@@ -255,12 +255,17 @@ window.Quarto = {
 <p>For this problem, we can use around 1000 data points from a calibration set (hence, the name split conformal prediction).</p>
 <p>We’ll use the following libraries for this example:</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(neuralnet)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
-<p>We’ll also create a function to simulate data. This function is taken from Tidymodel’s Conformal Prediction post, but we won’t be using any other function from the Tidymodels framework.</p>
+<p>We’ll also create a function to simulate data. This function is taken from <a href="https://www.tidymodels.org/learn/models/conformal-regression/">Tidymodel’s Conformal Prediction post</a>, but we won’t be using any function from the Tidymodels framework.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>make_data <span class="ot">&lt;-</span> <span class="cf">function</span>(n, <span class="at">std_dev =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">5</span>) {</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">x =</span> <span class="fu">runif</span>(n, <span class="at">min =</span> <span class="sc">-</span><span class="dv">1</span>))  <span class="sc">|&gt;</span> </span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
@@ -268,41 +273,21 @@ window.Quarto = {
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">y =</span> y <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> std_dev)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
 <p>I will pre-create our different sets: training, calibration, and test.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">8383</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>train_data <span class="ot">&lt;-</span> <span class="fu">make_data</span>(<span class="dv">10000</span>)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>cal_data <span class="ot">&lt;-</span> <span class="fu">make_data</span>(<span class="dv">1000</span>)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>test_data <span class="ot">&lt;-</span> <span class="fu">make_data</span>(<span class="dv">10000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
 <p>And, our training data looks like this! As you can see, a simple linear regression will probably not work. We could do something using smooth splines, or maybe a tree-based method but I’ll be using a neural network to use a commonly used ML model.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_minimal</span>())</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>train_data <span class="sc">|&gt;</span> </span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(ggplot2<span class="sc">::</span><span class="fu">aes</span>(x, y)) <span class="sc">+</span> </span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Our function <span class="math inline">\(\hat f_{n_1}(x_i), \ i \in D_1\)</span>, trained predicts the overall mean well enough.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>m_nnet <span class="ot">&lt;-</span> <span class="fu">neuralnet</span>(y <span class="sc">~</span> x , train_data, <span class="at">hidden =</span> <span class="dv">4</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(ggplot2<span class="sc">::</span><span class="fu">aes</span>(x, y), <span class="at">data =</span> train_data) <span class="sc">+</span> </span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">10</span>)  <span class="sc">+</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="fu">aes</span>(x, </span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                          m_nnet<span class="sc">$</span>net.result[[<span class="dv">1</span>]], <span class="at">colour =</span> <span class="st">"Prediction"</span>),</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                      <span class="at">alpha =</span> <span class="dv">2</span> <span class="sc">/</span> <span class="dv">10</span>) <span class="sc">+</span> </span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Prediction"</span> <span class="ot">=</span> <span class="st">"darkred"</span>)) <span class="sc">+</span> </span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">colour =</span> <span class="st">""</span>) <span class="sc">+</span> </span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -311,60 +296,14 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>To create our prediction intervals, we need to define a ‘distance’ or ‘score’ function for our calibration set residuals <span class="math inline">\(R_i\)</span>, <span class="math inline">\(i \in D_2\)</span>. We can use any negatively oriented function (where lower values are better!). I’ll use the absolute difference: <span class="math inline">\(R_i = |Y_i - \hat f_{n_1}(X_i)|,\ i \in D_2\)</span> since it’s easy to understand, and it maintains the scale of the original problem.</p>
-<p>Our <span class="math inline">\(\alpha\)</span> level for our intervals will be 0.05, and our conformal quantile is calculated <span class="math inline">\(\hat q_{n_2} = \lceil(1 - \alpha)(n_2 + 1)\rceil\)</span>.</p>
-<p>So, since calibration set has 1000 data points, the rank we’re looking for would be: 951, since this is an index, we’ll need to sort our residuals, and look for the index.</p>
-<p>We could alternatively divide this index by the number of rows (<span class="math inline">\(n_2\)</span>) of our calibration set, and look for the quantile which you’ll see gives a very similar result.</p>
+<p>Our function <span class="math inline">\(\hat f_{n_1}(x_i), \ i \in D_1\)</span>, trained predicts the overall mean well enough.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit model to calibration set</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cal_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, cal_data[,<span class="dv">1</span>]) </span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate score</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">abs</span>(cal_fit <span class="sc">-</span> cal_data[,<span class="st">"y"</span>])</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the R_i</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>R_i <span class="ot">&lt;-</span> <span class="fu">ceiling</span>(<span class="fl">0.95</span> <span class="sc">*</span> (<span class="fu">nrow</span>(cal_data)<span class="sc">+</span><span class="dv">1</span>))</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Rank method</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>rank_value <span class="ot">&lt;-</span> res<span class="sc">$</span>y[<span class="fu">rank</span>(res) <span class="sc">==</span> R_i]</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Quantile method</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>quantile_value <span class="ot">&lt;-</span> <span class="fu">quantile</span>(res<span class="sc">$</span>y, R_i<span class="sc">/</span><span class="fu">nrow</span>(res))</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(rank_value, </span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>      quantile_value) <span class="sc">|&gt;</span> </span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Rank method"</span>,</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Quantile method"</span>),</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>               <span class="at">row.names =</span> F,</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>               <span class="at">format =</span> <span class="st">"html"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
-<thead>
-<tr class="header">
-<th style="text-align: right;" data-quarto-table-cell-role="th">Rank method</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">Quantile method</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0.41278</td>
-<td style="text-align: right;">0.4129021</td>
-</tr>
-</tbody>
-</table>
-
-
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>m_nnet <span class="ot">&lt;-</span> <span class="fu">neuralnet</span>(y <span class="sc">~</span> x , train_data, <span class="at">hidden =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
-</div>
-<p>Now, the beauty of this is that the conformal quantile/rank we just calculated, will give us a guaranteed <span class="math inline">\(\alpha\)</span> level prediction interval as <span class="math inline">\(n \rightarrow \infty\)</span> in our calibration set, so the bigger our calibration set the closer we’ll get to that coverage. Thus, it’s often common to split around 1000 observations or more, which means this method is better suited for big data than small sample sizes.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit to test data</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>test_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, test_data[,<span class="dv">1</span>])</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the symmetric intervals</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">aes</span>(x, y), <span class="at">data =</span> test_data) <span class="sc">+</span> </span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">10</span>)  <span class="sc">+</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="fu">aes</span>(x, test_fit), <span class="at">col =</span> <span class="st">"darkred"</span>) <span class="sc">+</span> </span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">ymin =</span> test_fit<span class="sc">-</span>rank_value,</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                  <span class="at">ymax =</span> test_fit <span class="sc">+</span> rank_value), <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span> </span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -373,26 +312,89 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>So, using our test set of 10.000 observations, we can see that the coverage is actually 95 %.</p>
-<p>This is extremely relevant, since previously most Machine Learning methods lacked a reliable way to measure the uncertainty of their methods, and relying on asymptotic normality does not always make sense.</p>
+<p>To create our prediction intervals, we need to define a ‘distance’ or ‘score’ function for our calibration set residuals <span class="math inline">\(R_i\)</span>, <span class="math inline">\(i \in D_2\)</span>. We can use any negatively oriented function (where lower values are better!).</p>
+<p>We’ll be using the absolute difference: <span class="math inline">\(R_i = |Y_i - \hat f_{n_1}(X_i)|,\ i \in D_2\)</span> for this example since it’s easy to understand, and it maintains the scale of the original problem.</p>
+<p>Our <span class="math inline">\(\alpha\)</span> level for our intervals will be 0.05, and our conformal quantile is calculated <span class="math inline">\(\hat q_{n_2} = \lceil(1 - \alpha)(n_2 + 1)\rceil\)</span>.</p>
+<p>So, since calibration set has 1.000 data points, the rank we’re looking for would be: 951, since this is rank, we’ll need to find the residual that matches this particular rank.</p>
+<p>We could alternatively divide this index by the number of rows (<span class="math inline">\(n_2\)</span>) of our calibration set, and look for the quantile which you’ll see gives a very similar result.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create dataframe with relevant data</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>intervals <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">lower =</span> test_fit <span class="sc">-</span> rank_value,</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">upper =</span> test_fit <span class="sc">+</span> rank_value,</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>                        <span class="at">pred =</span> test_fit,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                        <span class="at">y =</span> test_data<span class="sc">$</span>y)</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate coverage</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>intervals <span class="sc">|&gt;</span> </span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">coverage =</span> <span class="fu">ifelse</span>(y <span class="sc">&lt;=</span> upper <span class="sc">&amp;</span> y <span class="sc">&gt;=</span> lower, <span class="dv">1</span> , <span class="dv">0</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">coverage =</span> <span class="fu">round</span>(<span class="fu">sum</span>(coverage)<span class="sc">/</span> <span class="fu">length</span>(coverage), <span class="dv">2</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Coverage"</span>),</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>               <span class="at">format =</span> <span class="st">"html"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit model to calibration set</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>cal_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, cal_data[,<span class="dv">1</span>]) </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate score</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">abs</span>(cal_fit <span class="sc">-</span> cal_data[,<span class="st">"y"</span>])</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the R_i</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>R_i <span class="ot">&lt;-</span> <span class="fu">ceiling</span>(<span class="fl">0.95</span> <span class="sc">*</span> (<span class="fu">nrow</span>(cal_data)<span class="sc">+</span><span class="dv">1</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Rank method</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>rank_value <span class="ot">&lt;-</span> res<span class="sc">$</span>y[<span class="fu">rank</span>(res) <span class="sc">==</span> R_i]</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Quantile method</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>quantile_value <span class="ot">&lt;-</span> <span class="fu">quantile</span>(res<span class="sc">$</span>y, R_i<span class="sc">/</span><span class="fu">nrow</span>(res))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
 <div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<table class="caption-top table table-sm table-striped small">
 <thead>
 <tr class="header">
-<th style="text-align: right;" data-quarto-table-cell-role="th">Coverage</th>
+<th style="text-align: left;">Method</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Rank method</td>
+<td style="text-align: right;">0.4127800</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Quantile method</td>
+<td style="text-align: right;">0.4129021</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Now, the beauty of this is that the conformal quantile/rank we just calculated, will give us a guaranteed <span class="math inline">\(\alpha\)</span> level prediction interval as <span class="math inline">\(n \rightarrow \infty\)</span> in our calibration set, so the bigger our calibration set the closer we’ll get to that coverage. Thus, it’s often common to split around 1000 observations or more, which means this method is better suited for big data than small sample sizes.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit to test data</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>test_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, test_data[,<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>So, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 %.</p>
+<p>This is extremely relevant, since previously most Machine Learning methods lacked a reliable way to measure the uncertainty of their methods, and relying on asymptotic normality does not always make sense for a problem.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create dataframe with relevant data</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>intervals <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">lower =</span> test_fit <span class="sc">-</span> rank_value,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">upper =</span> test_fit <span class="sc">+</span> rank_value,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                        <span class="at">pred =</span> test_fit,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                        <span class="at">y =</span> test_data<span class="sc">$</span>y)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate coverage</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>intervals <span class="sc">|&gt;</span> </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">coverage =</span> <span class="fu">ifelse</span>(y <span class="sc">&lt;=</span> upper <span class="sc">&amp;</span> y <span class="sc">&gt;=</span> lower, <span class="dv">1</span> , <span class="dv">0</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">coverage =</span> <span class="fu">round</span>(<span class="fu">sum</span>(coverage)<span class="sc">/</span> <span class="fu">length</span>(coverage), <span class="dv">2</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Coverage"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">Coverage</th>
 </tr>
 </thead>
 <tbody>
@@ -401,8 +403,6 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-
-
 </div>
 </div>
 
