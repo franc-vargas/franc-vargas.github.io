@@ -1,0 +1,231 @@
+---
+title: "Conformal Prediction Part 2: Asymmetric intervals"
+description: "Creation of Conformal intervals for uncertainty quantifiction in Machine Learning under heteroscedasticity, example using simulated data"
+author: "Francisco Vargas"
+date: "2025/04/29"
+code-fold: true
+categories: 
+  - R
+  - Statistics
+  - Machine Learning
+  - Conformal Prediction
+  - Uncertainty Quantification
+execute:
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+
+This is the second part of a small series to show how to implement Conformal Prediction intervals in R from scratch, without relying in frameworks (such as Tidymodels) or other specific packages. Initially, quick and easy reproducible posts will be done, and later I'll use some real-world examples.
+
+This particular case is based on a heteroscedastic regression problem, where we need an asymmetric interval with a 95% coverage guarantee around a non-linear estimator of the expected value, using a simple neural network.
+
+The focus of this series is not on the complexity of the methods or models, but rather to exemplify how to implement conformal intervals with a specific guarantee.
+
+## About Conformal Prediction
+
+Conformal Prediction (CP) is an uncertainty quantification framework or techniques used in Machine Learning problems where classical asymptotic theory does not hold too well due to the type of models being used. The most common use is split conformal prediction, where from our training data $D$ we split it into $D_1$ proper training data and $D_2$ for calibration data.
+
+The objective is to create an interval with an $\alpha$ coverage level guarantee that is distribution-free, using a function $\hat f_n(x)$, where using the train data, we'll train a neural network to predict the mean, or point predictor of the regression at $x$, and a second model will be fit on the 'spread' of the training residuals, and used to predict the dispersion on the calibration data. The model used to predict the conditional expectation or conditional mean could be a linear model, generalized linear model, a spline, a random forest or even a bayesian model. It could be any function.
+
+Some nomenclature to be consistent:
+
++ Training data: $D_1$
+
++ Calibration data: $D_2$
+
++ Point predictor model: $\hat f_{n_1}(X_i)$
+
++ Spread predictor model: $\hat \sigma_{n_1}(X_i)$
+
++ Residual: $R_i$
+
+For this problem, we can use around 1000 data points from a calibration set (hence, the name split conformal prediction). 
+
+We'll use the following libraries for this example:
+
+```{r}
+library(dplyr)
+library(neuralnet)
+library(ggplot2)
+```
+
+We'll also create a function to simulate data. This function is taken from [Tidymodel's Conformal Prediction post](https://www.tidymodels.org/learn/models/conformal-regression/), but we won't be using any function from the Tidymodels framework.
+
+```{r}
+make_variable_data <- function(n, std_dev = 1 / 5) {
+  tibble(x = runif(n, min = -1))  |> 
+    mutate(
+      y = (x^3) + 2 * exp(-6 * (x - 0.3)^2),
+      y = y + rnorm(n, sd = std_dev * abs(x))
+    )
+}
+
+coverage <- function(y, lower, upper){
+  aux <- ifelse(y >= lower & y <= upper, 1 , 0)
+  sum(aux)/length(aux)
+  
+}
+```
+
+I will pre-create our different sets: training, calibration, and test.
+
+```{r}
+set.seed(7292)
+train_variable_data <- make_variable_data(10000)
+cal_variable_data <- make_variable_data(1000)
+test_variable_data <- make_variable_data(10000)
+
+```
+
+And, our training data looks like this! As you can see, a simple linear regression will probably not work too well. We could do something using smooth splines, or maybe a tree-based method but I'll be using a neural network to use a commonly used ML model.
+
+```{r}
+#| echo: false
+theme_set(theme_minimal())
+
+```
+
+
+```{r}
+#| echo: false
+make_variable_data(1000) |>  
+  ggplot(aes(x, y)) + 
+  geom_point(alpha = 1 / 5)
+
+```
+
+Our function $\hat f_{n_1}(X_i), \ i \in D_1$, trained predicts the overall mean well enough. The best fit line looks good, despite having regions with higher and lower heteroskedasticity.
+
+```{r}
+m_nnet <- 
+  neuralnet(y ~ x,
+            train_variable_data,
+            hidden = c(4,5),
+            threshold=0.04, 
+            act.fct="tanh", 
+            linear.output=TRUE, 
+            stepmax=1e7)
+```
+
+```{r}
+#| echo: false
+
+ggplot(
+  aes(x, y), 
+  data = train_variable_data) + 
+  geom_point(alpha = 1 / 10)  +
+  geom_line(
+    aes(x,
+        m_nnet$net.result[[1]],
+        colour = "Prediction"),
+    linewidth = 1) + 
+  scale_colour_manual(values = c("Prediction" = "darkred")) + 
+  labs(colour = "") + 
+  theme(legend.position = "top")
+
+```
+
+To create our prediction intervals, we need to define a 'distance' or 'score' function and a spread predictor. We'll be using the absolute difference for the score function, and the function for the spread will be based on this score.
+
+The spread predictor should be estimated using the same variables as the neural network, not necessarily using the same type of model. In this particular case we only have 1 covariate. To show that you can use something other than a neural network, my spread predictor will be a smoothing spline. The relationship between our predictor and the score function looks like this, where the red line is $\hat \sigma_{n_1}$.
+
+```{r}
+# Fit model to calibration set
+spread <- abs(train_variable_data$y - m_nnet$net.result[[1]])
+spread_predictor <- smooth.spline(train_variable_data$x, spread)
+```
+
+```{r}
+#| echo: false
+
+ggplot()+
+  geom_point(
+    aes(x = train_variable_data$x,
+        y = spread),
+    alpha = 1 / 10) + 
+  geom_line(
+    aes(x = train_variable_data$x,
+        y = fitted(spread_predictor)),
+    col = "darkred",
+    linewidth = 1)
+
+```
+
+
+Now, we need calculate our calibration studentized residuals $R_i = \frac{|Y_i - \hat f_{n_1}(X_i)|}{\hat\sigma_{n_1}(X_i)}, \ i \in D_2$, using our calibration data.
+
+```{r}
+cal_spread <- predict(spread_predictor, cal_variable_data[,1])
+cal_fit <- predict(m_nnet, cal_variable_data[,1]) 
+
+
+quantile_searched <- ceiling(0.95 * (nrow(cal_variable_data)+1))/nrow(cal_variable_data)
+
+# Find the R_i
+r_i <- abs(cal_variable_data$y - cal_fit[,1])
+r_i <- r_i/cal_spread$y$x 
+
+q_var <- quantile(r_i, quantile_searched)
+```
+
+In order to get our prediction intervals, we just need to multiply our spread predictor by our estimated quantile value, and create an lower and upper bound around the point predictor: $\hat C_n(x) = \left[\hat f_{n_1}(x) - \hat \sigma_{n_1}(x)\hat q_{n_2}, \ \hat f_{n_1}(x) + \hat \sigma_{n_1}(x)\hat q_{n_2} \right]$.
+
+This, in our calibration set looks like this: 
+
+```{r}
+#| echo: false
+
+ggplot(
+  aes(x = x,
+      y = y), 
+  data = cal_variable_data) + 
+  geom_point(alpha = 1/ 5) + 
+  geom_line(aes(y = cal_fit, colour = "Prediction")) + 
+  geom_ribbon(aes(ymin = cal_fit -cal_spread$y$x*q_var,
+                  ymax = cal_fit +cal_spread$y$x*q_var),
+              alpha = 1 / 3,
+              fill = "pink") +
+  scale_colour_manual(values = c("Prediction" = "darkred")) + 
+  labs(colour = "") + 
+  theme(legend.position = "top")
+```
+
+Now we can calculate our prediction intervals in our test set, and check the coverage of our method.
+
+```{r}
+# Fit to test data
+test_fit <- predict(m_nnet, test_variable_data[,1])
+test_spread <- predict(spread_predictor, test_variable_data[,1])
+lower_bounds <- test_fit - test_spread$y$x*q_var
+upper_bounds <- test_fit + test_spread$y$x*q_var
+test_coverage <- coverage(test_variable_data[,"y"],
+                          lower_bounds,
+                          upper_bounds)
+
+```
+
+```{r}
+#| echo: true
+# Plot the symmetric intervals
+ggplot2::ggplot(aes(x, y), data = test_variable_data) + 
+  ggplot2::geom_point(alpha = 1 / 15)  +
+  ggplot2::geom_line(aes(x, test_fit), col = "darkred",
+                     linewidth = 1) + 
+  geom_ribbon(aes(x = x, ymin = lower_bounds,
+                  ymax = upper_bounds), alpha = 1/4,
+              fill = "pink") + 
+  annotate("text",
+           x = 0.9, y = -1.5, 
+           label = paste("Coverage of:", 
+                         scales::percent(test_coverage) ))
+```
+
+So, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 % using studentized residuals even on the case of heteroscedastic data. This is fairly useful, especially when you see a pattern that can be modeled by a function within the training residuals.
+
+Studentized residuals might fall short when $\hat f_{n_1}$ is complex and leaves little to no information on the residuals to use this method. An alternative to this is a conformalized quantile regression, a method that focuses directly on the prediction bands instead of using residuals. This I'll cover on part 3.
+
+The idea of most conformal prediction methods is similar: to make post-hoc adjustments to our uncertainty in order to achieve a specific long-run coverage, which is firmly rooted in a frequentist interpretation of statistics.
+
