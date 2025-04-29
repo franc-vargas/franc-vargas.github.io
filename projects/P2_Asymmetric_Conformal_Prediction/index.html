@@ -7,10 +7,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Francisco Vargas">
-<meta name="dcterms.date" content="2025-03-19">
-<meta name="description" content="Forecasting through classic SARIMA and SARIMAX models">
+<meta name="dcterms.date" content="2025-04-29">
+<meta name="description" content="Creation of Conformal intervals for uncertainty quantifiction in Machine Learning under heteroscedasticity, example using simulated data">
 
-<title>Forecasting: Banco de Chile’s Consumer Stock – Francisco Vargas</title>
+<title>Conformal Prediction Part 2: Asymmetric intervals – Francisco Vargas</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -70,15 +105,6 @@ ul.task-list li input[type="checkbox"] {
     "search-label": "Search"
   }
 }</script>
-<link href="../../site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
-<script src="../../site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<script src="../../site_libs/plotly-binding-4.10.4/plotly.js"></script>
-<script src="../../site_libs/typedarray-0.1/typedarray.min.js"></script>
-<script src="../../site_libs/jquery-3.5.1/jquery.min.js"></script>
-<link href="../../site_libs/crosstalk-1.2.1/css/crosstalk.min.css" rel="stylesheet">
-<script src="../../site_libs/crosstalk-1.2.1/js/crosstalk.min.js"></script>
-<link href="../../site_libs/plotly-htmlwidgets-css-2.11.1/plotly-htmlwidgets.css" rel="stylesheet">
-<script src="../../site_libs/plotly-main-2.11.1/plotly-latest.min.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
@@ -158,11 +184,9 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#context" id="toc-context" class="nav-link active" data-scroll-target="#context">Context</a>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a>
   <ul class="collapse">
-  <li><a href="#stationarity" id="toc-stationarity" class="nav-link" data-scroll-target="#stationarity">Stationarity</a></li>
-  <li><a href="#auto-correlations-partial-auto-correlations-cross-correlations" id="toc-auto-correlations-partial-auto-correlations-cross-correlations" class="nav-link" data-scroll-target="#auto-correlations-partial-auto-correlations-cross-correlations">Auto Correlations, Partial Auto Correlations, Cross Correlations</a></li>
-  <li><a href="#evaluation" id="toc-evaluation" class="nav-link" data-scroll-target="#evaluation">Evaluation</a></li>
+  <li><a href="#about-conformal-prediction" id="toc-about-conformal-prediction" class="nav-link" data-scroll-target="#about-conformal-prediction">About Conformal Prediction</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -172,18 +196,19 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Forecasting: Banco de Chile’s Consumer Stock</h1>
+<h1 class="title">Conformal Prediction Part 2: Asymmetric intervals</h1>
   <div class="quarto-categories">
     <div class="quarto-category">R</div>
     <div class="quarto-category">Statistics</div>
-    <div class="quarto-category">Time Series</div>
-    <div class="quarto-category">Forecasting</div>
+    <div class="quarto-category">Machine Learning</div>
+    <div class="quarto-category">Conformal Prediction</div>
+    <div class="quarto-category">Uncertainty Quantification</div>
   </div>
   </div>
 
 <div>
   <div class="description">
-    Forecasting through classic SARIMA and SARIMAX models
+    Creation of Conformal intervals for uncertainty quantifiction in Machine Learning under heteroscedasticity, example using simulated data
   </div>
 </div>
 
@@ -200,7 +225,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">March 19, 2025</p>
+      <p class="date">April 29, 2025</p>
     </div>
   </div>
   
@@ -212,97 +237,183 @@ window.Quarto = {
 </header>
 
 
-<section id="context" class="level1">
-<h1>Context</h1>
-<p>The normal consumer stock (NCS) of a bank represents the amount of money that regular consumers invest in consumer credit. In this particular case, it is measured in Chilean Pesos (CLP). In this particular case, monthly NCS values were downloaded from xxxxx time series data bank. We also scraped the Monthy Index of Economic Activity (IMACEC), and the Interest Rate of the Central Bank of Chile.</p>
-<section id="stationarity" class="level2">
-<h2 class="anchored" data-anchor-id="stationarity">Stationarity</h2>
-<p>We can talk about stationarity in time series in two ways, stationarity of the mean and stationarity of the variance. Stationarity of the mean means that the values are around a mean <span class="math inline">\(\mu\)</span>, or a fixed value, while variance means that the spread around that mean is even and there’s no periods where it increases or decreases. Many times this assumptions are not met, which means that we need to evaluate our time series a bit differently. We can assess the stationarity of the mean and variance of the first difference, and see if the mean stabilizes and then if the variance continues to be heteroskedastic, we can apply a transformation (sqrt, log, etc) to the original series and then evaluate the first difference.</p>
-<p>To assess this, the quickest and simplest way to do is to look at a graph of the series and, as we can see here, this is a non-stationary time-series, both in variance and mean.</p>
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>This is the second part of a small series to show how to implement Conformal Prediction intervals in R from scratch, without relying in frameworks (such as Tidymodels) or other specific packages. Initially, quick and easy reproducible posts will be done, and later I’ll use some real-world examples.</p>
+<p>This particular case is based on a heteroscedastic regression problem, where we need an asymmetric interval with a 95% coverage guarantee around a non-linear estimator of the expected value, using a simple neural network.</p>
+<p>The focus of this series is not on the complexity of the methods or models, but rather to exemplify how to implement conformal intervals with a specific guarantee.</p>
+<section id="about-conformal-prediction" class="level2">
+<h2 class="anchored" data-anchor-id="about-conformal-prediction">About Conformal Prediction</h2>
+<p>Conformal Prediction (CP) is an uncertainty quantification framework or techniques used in Machine Learning problems where classical asymptotic theory does not hold too well due to the type of models being used. The most common use is split conformal prediction, where from our training data <span class="math inline">\(D\)</span> we split it into <span class="math inline">\(D_1\)</span> proper training data and <span class="math inline">\(D_2\)</span> for calibration data.</p>
+<p>The objective is to create an interval with an <span class="math inline">\(\alpha\)</span> coverage level guarantee that is distribution-free, using a function <span class="math inline">\(\hat f_n(x)\)</span>, where using the train data, we’ll train a neural network to predict the mean, or point predictor of the regression at <span class="math inline">\(x\)</span>, and a second model will be fit on the ‘spread’ of the training residuals, and used to predict the dispersion on the calibration data. The model used to predict the conditional expectation or conditional mean could be a linear model, generalized linear model, a spline, a random forest or even a bayesian model. It could be any function.</p>
+<p>Some nomenclature to be consistent:</p>
+<ul>
+<li><p>Training data: <span class="math inline">\(D_1\)</span></p></li>
+<li><p>Calibration data: <span class="math inline">\(D_2\)</span></p></li>
+<li><p>Point predictor model: <span class="math inline">\(\hat f_{n_1}(X_i)\)</span></p></li>
+<li><p>Spread predictor model: <span class="math inline">\(\hat \sigma_{n_1}(X_i)\)</span></p></li>
+<li><p>Residual: <span class="math inline">\(R_i\)</span></p></li>
+</ul>
+<p>For this problem, we can use around 1000 data points from a calibration set (hence, the name split conformal prediction).</p>
+<p>We’ll use the following libraries for this example:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(neuralnet)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>We’ll also create a function to simulate data. This function is taken from <a href="https://www.tidymodels.org/learn/models/conformal-regression/">Tidymodel’s Conformal Prediction post</a>, but we won’t be using any function from the Tidymodels framework.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>make_variable_data <span class="ot">&lt;-</span> <span class="cf">function</span>(n, <span class="at">std_dev =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">5</span>) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">x =</span> <span class="fu">runif</span>(n, <span class="at">min =</span> <span class="sc">-</span><span class="dv">1</span>))  <span class="sc">|&gt;</span> </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">y =</span> (x<span class="sc">^</span><span class="dv">3</span>) <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">6</span> <span class="sc">*</span> (x <span class="sc">-</span> <span class="fl">0.3</span>)<span class="sc">^</span><span class="dv">2</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">y =</span> y <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> std_dev <span class="sc">*</span> <span class="fu">abs</span>(x))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>coverage <span class="ot">&lt;-</span> <span class="cf">function</span>(y, lower, upper){</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  aux <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(y <span class="sc">&gt;=</span> lower <span class="sc">&amp;</span> y <span class="sc">&lt;=</span> upper, <span class="dv">1</span> , <span class="dv">0</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(aux)<span class="sc">/</span><span class="fu">length</span>(aux)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>I will pre-create our different sets: training, calibration, and test.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7292</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>train_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">10000</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>cal_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">1000</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>test_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">10000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>And, our training data looks like this! As you can see, a simple linear regression will probably not work too well. We could do something using smooth splines, or maybe a tree-based method but I’ll be using a neural network to use a commonly used ML model.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>In this particular case, variance was stabilized via log-transformation, and the first difference was stationary in mean:</p>
+<p>Our function <span class="math inline">\(\hat f_{n_1}(X_i), \ i \in D_1\)</span>, trained predicts the overall mean well enough. The best fit line looks good, despite having regions with higher and lower heteroskedasticity.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>m_nnet <span class="ot">&lt;-</span> </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">neuralnet</span>(y <span class="sc">~</span> x,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>            train_variable_data,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">hidden =</span> <span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">5</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">threshold=</span><span class="fl">0.04</span>, </span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">act.fct=</span><span class="st">"tanh"</span>, </span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">linear.output=</span><span class="cn">TRUE</span>, </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">stepmax=</span><span class="fl">1e7</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>We can see that despite transformations and first-difference there are some breaks on our time series, which will influence the outcome of the classical SARIMA model.</p>
-</section>
-<section id="auto-correlations-partial-auto-correlations-cross-correlations" class="level2">
-<h2 class="anchored" data-anchor-id="auto-correlations-partial-auto-correlations-cross-correlations">Auto Correlations, Partial Auto Correlations, Cross Correlations</h2>
-<p>ACF and PACF plots helps us decide the initial values for the SARIMA part of the model, while CCF helps us check the extent of the correlation between our covariates that we’ll use for forecasting.</p>
+<p>To create our prediction intervals, we need to define a ‘distance’ or ‘score’ function and a spread predictor. We’ll be using the absolute difference for the score function, and the function for the spread will be based on this score.</p>
+<p>The spread predictor should be estimated using the same variables as the neural network, not necessarily using the same type of model. In this particular case we only have 1 covariate. To show that you can use something other than a neural network, my spread predictor will be a smoothing spline. The relationship between our predictor and the score function looks like this, where the red line is <span class="math inline">\(\hat \sigma_{n_1}\)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit model to calibration set</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>spread <span class="ot">&lt;-</span> <span class="fu">abs</span>(train_variable_data<span class="sc">$</span>y <span class="sc">-</span> m_nnet<span class="sc">$</span>net.result[[<span class="dv">1</span>]])</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>spread_predictor <span class="ot">&lt;-</span> <span class="fu">smooth.spline</span>(train_variable_data<span class="sc">$</span>x, spread)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>Our PACF and ACF plots suggest an SARIMA structure, we’ll consider an ARIMA (3,1,1) and a SARMA (3,0,1) and since this is monthly data we’ll consider quarterly seasonality.</p>
-<p>For the SARIMAX model, same ARIMA and SARMA parts were considered, but our covariates included the ln of IMACEC and ln of the Interest Rate for Consumer credits, both lagged by 12 months. This decision came from noticing the CCF plot which showed relevant correlations 12 months in the past, as well as noticing that only the marginal effects (or interaction) between the two covariates was the most relevant part.</p>
-<p>Since the lagged product was the most relevant part, we modeled the product as the sum of logarithms.</p>
-</section>
-<section id="evaluation" class="level2">
-<h2 class="anchored" data-anchor-id="evaluation">Evaluation</h2>
-<p>We can see that while the SARIMA model maintains the proper shape, but the trend is off. In the case of the SARIMAX model, our covariates fix that trend through a linear regression.</p>
+<p>Now, we need calculate our calibration studentized residuals <span class="math inline">\(R_i = \frac{|Y_i - \hat f_{n_1}(X_i)|}{\hat\sigma_{n_1}(X_i)}, \ i \in D_2\)</span>, using our calibration data.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>cal_spread <span class="ot">&lt;-</span> <span class="fu">predict</span>(spread_predictor, cal_variable_data[,<span class="dv">1</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cal_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, cal_variable_data[,<span class="dv">1</span>]) </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>quantile_searched <span class="ot">&lt;-</span> <span class="fu">ceiling</span>(<span class="fl">0.95</span> <span class="sc">*</span> (<span class="fu">nrow</span>(cal_variable_data)<span class="sc">+</span><span class="dv">1</span>))<span class="sc">/</span><span class="fu">nrow</span>(cal_variable_data)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the R_i</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>r_i <span class="ot">&lt;-</span> <span class="fu">abs</span>(cal_variable_data<span class="sc">$</span>y <span class="sc">-</span> cal_fit[,<span class="dv">1</span>])</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>r_i <span class="ot">&lt;-</span> r_i<span class="sc">/</span>cal_spread<span class="sc">$</span>y<span class="sc">$</span>x </span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>q_var <span class="ot">&lt;-</span> <span class="fu">quantile</span>(r_i, quantile_searched)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>In order to get our prediction intervals, we just need to multiply our spread predictor by our estimated quantile value, and create an lower and upper bound around the point predictor: <span class="math inline">\(\hat C_n(x) = \left[\hat f_{n_1}(x) - \hat \sigma_{n_1}(x)\hat q_{n_2}, \ \hat f_{n_1}(x) + \hat \sigma_{n_1}(x)\hat q_{n_2} \right]\)</span>.</p>
+<p>This, in our calibration set looks like this:</p>
 <div class="cell">
 <div class="cell-output-display">
-<div class="plotly html-widget html-fill-item" id="htmlwidget-cea1058b9109c1e8e432" style="width:100%;height:464px;"></div>
-<script type="application/json" data-for="htmlwidget-cea1058b9109c1e8e432">{"x":{"data":[{"x":[18993,19024,19052,19083,19113,19144,19174,19205,19236,19266,19297,19327,19358,19389,19417,19448],"y":[4041003.4116099998,4037431.7383699999,4230129.080329,4274761.4932359997,4360132.1812760001,4405281.0778750004,4399231.5565499999,4491269.28632,4505690.7179269996,4573954.1838379996,4728692.9864969999,4770563.0842979997,4792371.4480170002,4758934.1204629997,4879153.7899900004,4854087.2198179998],"text":["Periodo: 2022-01-01<br />Stock.BChile: 4041003<br />colour: Training set","Periodo: 2022-02-01<br />Stock.BChile: 4037432<br />colour: Training set","Periodo: 2022-03-01<br />Stock.BChile: 4230129<br />colour: Training set","Periodo: 2022-04-01<br />Stock.BChile: 4274761<br />colour: Training set","Periodo: 2022-05-01<br />Stock.BChile: 4360132<br />colour: Training set","Periodo: 2022-06-01<br />Stock.BChile: 4405281<br />colour: Training set","Periodo: 2022-07-01<br />Stock.BChile: 4399232<br />colour: Training set","Periodo: 2022-08-01<br />Stock.BChile: 4491269<br />colour: Training set","Periodo: 2022-09-01<br />Stock.BChile: 4505691<br />colour: Training set","Periodo: 2022-10-01<br />Stock.BChile: 4573954<br />colour: Training set","Periodo: 2022-11-01<br />Stock.BChile: 4728693<br />colour: Training set","Periodo: 2022-12-01<br />Stock.BChile: 4770563<br />colour: Training set","Periodo: 2023-01-01<br />Stock.BChile: 4792371<br />colour: Training set","Periodo: 2023-02-01<br />Stock.BChile: 4758934<br />colour: Training set","Periodo: 2023-03-01<br />Stock.BChile: 4879154<br />colour: Training set","Periodo: 2023-04-01<br />Stock.BChile: 4854087<br />colour: Training set"],"type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(0,0,0,1)","dash":"solid"},"hoveron":"points","name":"Training set","legendgroup":"Training set","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[19448,19478,19509,19539,19570,19601,19631,19662,19692,19723,19754,19783,19814],"y":[4854087.2198179998,4939815.3698129999,4907016.5614430001,4886136.5507859997,4948428.0382869998,4877083.0909390002,4945624.3813739996,5035619.1193819996,5030171.173041,5057521.4410690004,4983285.594753,5051314.2064370001,5095074.6076349998],"text":["Periodo: 2023-04-01<br />Stock.BChile: 4854087<br />colour: Test set","Periodo: 2023-05-01<br />Stock.BChile: 4939815<br />colour: Test set","Periodo: 2023-06-01<br />Stock.BChile: 4907017<br />colour: Test set","Periodo: 2023-07-01<br />Stock.BChile: 4886137<br />colour: Test set","Periodo: 2023-08-01<br />Stock.BChile: 4948428<br />colour: Test set","Periodo: 2023-09-01<br />Stock.BChile: 4877083<br />colour: Test set","Periodo: 2023-10-01<br />Stock.BChile: 4945624<br />colour: Test set","Periodo: 2023-11-01<br />Stock.BChile: 5035619<br />colour: Test set","Periodo: 2023-12-01<br />Stock.BChile: 5030171<br />colour: Test set","Periodo: 2024-01-01<br />Stock.BChile: 5057521<br />colour: Test set","Periodo: 2024-02-01<br />Stock.BChile: 4983286<br />colour: Test set","Periodo: 2024-03-01<br />Stock.BChile: 5051314<br />colour: Test set","Periodo: 2024-04-01<br />Stock.BChile: 5095075<br />colour: Test set"],"type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(139,0,0,1)","dash":"solid"},"hoveron":"points","name":"Test set","legendgroup":"Test set","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[18993,19024,19052,19083,19113,19144,19174,19205,19236,19266,19297,19327,19358,19389,19417,19448,19478,19509,19539,19570,19601,19631,19662,19692,19723,19754,19783,19814],"y":[4025409.7674672771,4068431.7191871936,4124042.1318590925,4253196.2994079115,4318674.5344380373,4413940.9436271219,4467162.8782898812,4473959.5407532323,4503077.1869680118,4548919.7859808188,4629922.7713369103,4796446.77402387,4762828.8966972856,4821659.4196784841,4873193.5913376948,4881153.416626066,4896301.0209703352,4907684.0519703543,4914593.3570772298,4969846.5441043666,4967278.3067278303,4987641.3019129885,5033629.8666417534,5079609.6092887921,5040397.3326668395,5032473.7302138815,5112923.2184126824,5107133.8757968536],"text":["Periodo: 2022-01-01<br />Modelo_sarimax.lagged: 4025410<br />colour: SARIMAX Lagged","Periodo: 2022-02-01<br />Modelo_sarimax.lagged: 4068432<br />colour: SARIMAX Lagged","Periodo: 2022-03-01<br />Modelo_sarimax.lagged: 4124042<br />colour: SARIMAX Lagged","Periodo: 2022-04-01<br />Modelo_sarimax.lagged: 4253196<br />colour: SARIMAX Lagged","Periodo: 2022-05-01<br />Modelo_sarimax.lagged: 4318675<br />colour: SARIMAX Lagged","Periodo: 2022-06-01<br />Modelo_sarimax.lagged: 4413941<br />colour: SARIMAX Lagged","Periodo: 2022-07-01<br />Modelo_sarimax.lagged: 4467163<br />colour: SARIMAX Lagged","Periodo: 2022-08-01<br />Modelo_sarimax.lagged: 4473960<br />colour: SARIMAX Lagged","Periodo: 2022-09-01<br />Modelo_sarimax.lagged: 4503077<br />colour: SARIMAX Lagged","Periodo: 2022-10-01<br />Modelo_sarimax.lagged: 4548920<br />colour: SARIMAX Lagged","Periodo: 2022-11-01<br />Modelo_sarimax.lagged: 4629923<br />colour: SARIMAX Lagged","Periodo: 2022-12-01<br />Modelo_sarimax.lagged: 4796447<br />colour: SARIMAX Lagged","Periodo: 2023-01-01<br />Modelo_sarimax.lagged: 4762829<br />colour: SARIMAX Lagged","Periodo: 2023-02-01<br />Modelo_sarimax.lagged: 4821659<br />colour: SARIMAX Lagged","Periodo: 2023-03-01<br />Modelo_sarimax.lagged: 4873194<br />colour: SARIMAX Lagged","Periodo: 2023-04-01<br />Modelo_sarimax.lagged: 4881153<br />colour: SARIMAX Lagged","Periodo: 2023-05-01<br />Modelo_sarimax.lagged: 4896301<br />colour: SARIMAX Lagged","Periodo: 2023-06-01<br />Modelo_sarimax.lagged: 4907684<br />colour: SARIMAX Lagged","Periodo: 2023-07-01<br />Modelo_sarimax.lagged: 4914593<br />colour: SARIMAX Lagged","Periodo: 2023-08-01<br />Modelo_sarimax.lagged: 4969847<br />colour: SARIMAX Lagged","Periodo: 2023-09-01<br />Modelo_sarimax.lagged: 4967278<br />colour: SARIMAX Lagged","Periodo: 2023-10-01<br />Modelo_sarimax.lagged: 4987641<br />colour: SARIMAX Lagged","Periodo: 2023-11-01<br />Modelo_sarimax.lagged: 5033630<br />colour: SARIMAX Lagged","Periodo: 2023-12-01<br />Modelo_sarimax.lagged: 5079610<br />colour: SARIMAX Lagged","Periodo: 2024-01-01<br />Modelo_sarimax.lagged: 5040397<br />colour: SARIMAX Lagged","Periodo: 2024-02-01<br />Modelo_sarimax.lagged: 5032474<br />colour: SARIMAX Lagged","Periodo: 2024-03-01<br />Modelo_sarimax.lagged: 5112923<br />colour: SARIMAX Lagged","Periodo: 2024-04-01<br />Modelo_sarimax.lagged: 5107134<br />colour: SARIMAX Lagged"],"type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(3,54,124,0.7)","dash":"solid"},"hoveron":"points","name":"SARIMAX Lagged","legendgroup":"SARIMAX Lagged","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[18993,19024,19052,19083,19113,19144,19174,19205,19236,19266,19297,19327,19358,19389,19417,19448,19478,19509,19539,19570,19601,19631,19662,19692,19723,19754,19783,19814],"y":[4031579.1617161394,4061041.9971724735,4107379.0843645153,4269733.596817744,4305209.5342302276,4426545.3384232856,4473476.4277752368,4488415.3673455315,4504014.1221926743,4544399.8098861659,4623425.4932380663,4803439.3272085153,4789880.7874581506,4827782.8837677045,4847802.0121647585,4925172.1762406044,4952408.5424513435,4986267.0345967207,4984055.2357224533,5047248.1934070177,5032894.0430288287,5071230.3229564922,5143766.9955090256,5176556.8027643384,5181154.8219683934,5177985.3343021227,5211651.8269307297,5244541.0992339794],"text":["Periodo: 2022-01-01<br />Modelo_sarima: 4031579<br />colour: SARIMA","Periodo: 2022-02-01<br />Modelo_sarima: 4061042<br />colour: SARIMA","Periodo: 2022-03-01<br />Modelo_sarima: 4107379<br />colour: SARIMA","Periodo: 2022-04-01<br />Modelo_sarima: 4269734<br />colour: SARIMA","Periodo: 2022-05-01<br />Modelo_sarima: 4305210<br />colour: SARIMA","Periodo: 2022-06-01<br />Modelo_sarima: 4426545<br />colour: SARIMA","Periodo: 2022-07-01<br />Modelo_sarima: 4473476<br />colour: SARIMA","Periodo: 2022-08-01<br />Modelo_sarima: 4488415<br />colour: SARIMA","Periodo: 2022-09-01<br />Modelo_sarima: 4504014<br />colour: SARIMA","Periodo: 2022-10-01<br />Modelo_sarima: 4544400<br />colour: SARIMA","Periodo: 2022-11-01<br />Modelo_sarima: 4623425<br />colour: SARIMA","Periodo: 2022-12-01<br />Modelo_sarima: 4803439<br />colour: SARIMA","Periodo: 2023-01-01<br />Modelo_sarima: 4789881<br />colour: SARIMA","Periodo: 2023-02-01<br />Modelo_sarima: 4827783<br />colour: SARIMA","Periodo: 2023-03-01<br />Modelo_sarima: 4847802<br />colour: SARIMA","Periodo: 2023-04-01<br />Modelo_sarima: 4925172<br />colour: SARIMA","Periodo: 2023-05-01<br />Modelo_sarima: 4952409<br />colour: SARIMA","Periodo: 2023-06-01<br />Modelo_sarima: 4986267<br />colour: SARIMA","Periodo: 2023-07-01<br />Modelo_sarima: 4984055<br />colour: SARIMA","Periodo: 2023-08-01<br />Modelo_sarima: 5047248<br />colour: SARIMA","Periodo: 2023-09-01<br />Modelo_sarima: 5032894<br />colour: SARIMA","Periodo: 2023-10-01<br />Modelo_sarima: 5071230<br />colour: SARIMA","Periodo: 2023-11-01<br />Modelo_sarima: 5143767<br />colour: SARIMA","Periodo: 2023-12-01<br />Modelo_sarima: 5176557<br />colour: SARIMA","Periodo: 2024-01-01<br />Modelo_sarima: 5181155<br />colour: SARIMA","Periodo: 2024-02-01<br />Modelo_sarima: 5177985<br />colour: SARIMA","Periodo: 2024-03-01<br />Modelo_sarima: 5211652<br />colour: SARIMA","Periodo: 2024-04-01<br />Modelo_sarima: 5244541<br />colour: SARIMA"],"type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(255,165,0,0.7)","dash":"solid"},"hoveron":"points","name":"SARIMA","legendgroup":"SARIMA","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":["2023-04-01","2023-04-01"],"y":[3964453.2008789419,5305497.6658223141],"text":"xintercept: 2023-04-01","type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(169,169,169,1)","dash":"dash"},"hoveron":"points","showlegend":false,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":26.228310502283104,"r":7.3059360730593621,"b":40.182648401826491,"l":48.949771689497723},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[18951.950000000001,19855.049999999999],"tickmode":"array","ticktext":["2022","2023","2024"],"tickvals":[18993,19358,19723],"categoryorder":"array","categoryarray":["2022","2023","2024"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"Period","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[3964453.2008789419,5305497.6658223141],"tickmode":"array","ticktext":["4.00","4.24","4.50","4.76","5.00","5.24"],"tickvals":[4000000,4250000,4500000,4750000,5000000,5250000],"categoryorder":"array","categoryarray":["4.00","4.24","4.50","4.76","5.00","5.24"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Normal Stock: Billions of CLP","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":"transparent","line":{"color":"rgba(51,51,51,1)","width":0.66417600664176002,"linetype":"solid"},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"orientation":"h","xanchor":"center","x":0.5,"y":1.1000000000000001},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false,"displayModeBar":false},"source":"A","attrs":{"84ab795344ea":{"x":{},"y":{},"colour":{},"type":"scatter"},"84ab2790dcfc":{"x":{},"y":{},"colour":{}},"84ab6e6b1120":{"x":{},"y":{},"colour":{}},"84ab553b49f3":{"x":{},"y":{},"colour":{}},"84ab5fc52217":{"xintercept":{}}},"cur_data":"84ab795344ea","visdat":{"84ab795344ea":["function (y) ","x"],"84ab2790dcfc":["function (y) ","x"],"84ab6e6b1120":["function (y) ","x"],"84ab553b49f3":["function (y) ","x"],"84ab5fc52217":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
 </div>
 </div>
-<p>And our model evaluation, which considering we’re only using two covariates + time, is relatively good.</p>
+</div>
+<p>Now we can calculate our prediction intervals in our test set, and check the coverage of our method.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit to test data</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>test_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, test_variable_data[,<span class="dv">1</span>])</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>test_spread <span class="ot">&lt;-</span> <span class="fu">predict</span>(spread_predictor, test_variable_data[,<span class="dv">1</span>])</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>lower_bounds <span class="ot">&lt;-</span> test_fit <span class="sc">-</span> test_spread<span class="sc">$</span>y<span class="sc">$</span>x<span class="sc">*</span>q_var</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>upper_bounds <span class="ot">&lt;-</span> test_fit <span class="sc">+</span> test_spread<span class="sc">$</span>y<span class="sc">$</span>x<span class="sc">*</span>q_var</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>test_coverage <span class="ot">&lt;-</span> <span class="fu">coverage</span>(test_variable_data[,<span class="st">"y"</span>],</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                          lower_bounds,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>                          upper_bounds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the symmetric intervals</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">aes</span>(x, y), <span class="at">data =</span> test_variable_data) <span class="sc">+</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">15</span>)  <span class="sc">+</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="fu">aes</span>(x, test_fit), <span class="at">col =</span> <span class="st">"darkred"</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                     <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">ymin =</span> lower_bounds,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">ymax =</span> upper_bounds), <span class="at">alpha =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"pink"</span>) <span class="sc">+</span> </span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>           <span class="at">x =</span> <span class="fl">0.9</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.5</span>, </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">paste</span>(<span class="st">"Coverage of:"</span>, </span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>                         scales<span class="sc">::</span><span class="fu">percent</span>(test_coverage) ))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
-<thead>
-<tr class="header">
-<th style="text-align: left;" data-quarto-table-cell-role="th">Model</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">RMSE</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">MAE</th>
-<th style="text-align: left;" data-quarto-table-cell-role="th">MPE</th>
-<th style="text-align: left;" data-quarto-table-cell-role="th">MAPE</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">MASE</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">ME</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">SARIMA</td>
-<td style="text-align: right;">125657.04</td>
-<td style="text-align: right;">117211.93</td>
-<td style="text-align: left;">-2.4%</td>
-<td style="text-align: left;">2.4%</td>
-<td style="text-align: right;">1.98236</td>
-<td style="text-align: right;">-117211.93</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">SARIMAX</td>
-<td style="text-align: right;">41968.47</td>
-<td style="text-align: right;">34211.05</td>
-<td style="text-align: left;">-0.5%</td>
-<td style="text-align: left;">0.7%</td>
-<td style="text-align: right;">0.57860</td>
-<td style="text-align: right;">-24576.02</td>
-</tr>
-</tbody>
-</table>
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
 </div>
 </div>
+</div>
+<p>So, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 % using studentized residuals even on the case of heteroscedastic data. This is fairly useful, especially when you see a pattern that can be modeled by a function within the training residuals.</p>
+<p>Studentized residuals might fall short when <span class="math inline">\(\hat f_{n_1}\)</span> is complex and leaves little to no information on the residuals to use this method. An alternative to this is a conformalized quantile regression, a method that focuses directly on the prediction bands instead of using residuals. This I’ll cover on part 3.</p>
+<p>The idea of most conformal prediction methods is similar: to make post-hoc adjustments to our uncertainty in order to achieve a specific long-run coverage, which is firmly rooted in a frequentist interpretation of statistics.</p>
 
 
 </section>
