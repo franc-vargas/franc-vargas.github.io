@@ -5,7 +5,7 @@ subtitle: "Statistics & Data Science | Veterinarian"
 about:
   template: trestles
   image-width: 10em
-  image-shape: round
+  image-shape: rounded
 
 ---
 
