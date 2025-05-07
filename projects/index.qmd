@@ -4,6 +4,7 @@ listing:
   contents: /
   type: table
   fields: [title, date, description, categories]
+  sort: "date"
   field-display-names: 
     title: "Projects"
     Categories: "Skills"
