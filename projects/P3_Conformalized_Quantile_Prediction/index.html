@@ -7,10 +7,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Francisco Vargas">
-<meta name="dcterms.date" content="2025-04-29">
-<meta name="description" content="Creation of Conformal intervals for uncertainty quantifiction in Machine Learning under heteroscedasticity, example using simulated data">
+<meta name="dcterms.date" content="2025-05-06">
+<meta name="description" content="Creation of Conformal intervals for uncertainty quantifiction in Machine Learning using Quantile Regression">
 
-<title>Conformal Prediction Part 2: Asymmetric intervals – Francisco Vargas</title>
+<title>Conformal Prediction Part 3: Conformalized Quantile Regression (CQR) – Francisco Vargas</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -196,7 +196,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Conformal Prediction Part 2: Asymmetric intervals</h1>
+<h1 class="title">Conformal Prediction Part 3: Conformalized Quantile Regression (CQR)</h1>
   <div class="quarto-categories">
     <div class="quarto-category">R</div>
     <div class="quarto-category">Statistics</div>
@@ -208,7 +208,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Creation of Conformal intervals for uncertainty quantifiction in Machine Learning under heteroscedasticity, example using simulated data
+    Creation of Conformal intervals for uncertainty quantifiction in Machine Learning using Quantile Regression
   </div>
 </div>
 
@@ -225,7 +225,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 29, 2025</p>
+      <p class="date">May 6, 2025</p>
     </div>
   </div>
   
@@ -239,19 +239,17 @@ window.Quarto = {
 
 <section id="introduction" class="level1">
 <h1>Introduction</h1>
-<p>This is the second part of a small series to show how to implement Conformal Prediction intervals in R from scratch, without relying in frameworks (such as Tidymodels) or other specific packages. Initially, quick and easy reproducible posts will be done, and later I’ll use some real-world examples.</p>
-<p>This particular case is based on a heteroscedastic regression problem, where we need an asymmetric interval with a 95% coverage guarantee around a non-linear estimator of the expected value, using a simple neural network.</p>
+<p>This is the third part of a small series to show how to implement Conformal Prediction intervals in R from scratch, without relying in frameworks (such as Tidymodels). In this particular case, we’ll use the <code>quantregForest</code> package for our Quantile intervals.</p>
+<p>This particular case is based on a heteroscedastic regression problem, where we need an asymmetric interval with a 95% coverage guarantee, but we’ll skip the point estimator and goi straight for prediction regions.</p>
 <p>The focus of this series is not on the complexity of the methods or models, but rather to exemplify how to implement conformal intervals with a specific guarantee.</p>
 <section id="about-conformal-prediction" class="level2">
 <h2 class="anchored" data-anchor-id="about-conformal-prediction">About Conformal Prediction</h2>
 <p>Conformal Prediction (CP) is an uncertainty quantification framework or techniques used in Machine Learning problems where classical asymptotic theory does not hold too well due to the type of models being used. The most common use is split conformal prediction, where from our training data <span class="math inline">\(D\)</span> we split it into <span class="math inline">\(D_1\)</span> proper training data and <span class="math inline">\(D_2\)</span> for calibration data.</p>
-<p>The objective is to create an interval with an <span class="math inline">\(\alpha\)</span> coverage level guarantee that is distribution-free, using a function <span class="math inline">\(\hat f_n(x)\)</span>, where using the train data, we’ll train a neural network to predict the mean, or point predictor of the regression at <span class="math inline">\(x\)</span>, and a second model will be fit on the ‘spread’ of the training residuals, and used to predict the dispersion on the calibration data. The model used to predict the conditional expectation or conditional mean could be a linear model, generalized linear model, a spline, a random forest or even a bayesian model. It could be any function.</p>
+<p>The objective is to create an interval with an <span class="math inline">\(\alpha\)</span> coverage level guarantee that is distribution-free, but instead of modelling a point-estimator type of model, we’ll create the intervals directly using Quantile Regression, which is a model focused on the conditional quantiles.</p>
 <p>Some nomenclature to be consistent:</p>
 <ul>
 <li><p>Training data: <span class="math inline">\(D_1\)</span></p></li>
 <li><p>Calibration data: <span class="math inline">\(D_2\)</span></p></li>
-<li><p>Point predictor model: <span class="math inline">\(\hat f_{n_1}(X_i)\)</span></p></li>
-<li><p>Spread predictor model: <span class="math inline">\(\hat \sigma_{n_1}(X_i)\)</span></p></li>
 <li><p>Residual: <span class="math inline">\(R_i\)</span></p></li>
 </ul>
 <p>For this problem, we can use around 1000 data points from a calibration set (hence, the name split conformal prediction).</p>
@@ -260,7 +258,7 @@ window.Quarto = {
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(neuralnet)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(quantregForest)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -287,84 +285,133 @@ window.Quarto = {
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7292</span>)</span>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1992</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>train_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">10000</span>)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>cal_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">1000</span>)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>test_variable_data <span class="ot">&lt;-</span> <span class="fu">make_variable_data</span>(<span class="dv">10000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>And, our training data looks like this! As you can see, a simple linear regression will probably not work too well. We could do something using smooth splines, or maybe a tree-based method but I’ll be using a neural network to use a commonly used ML model.</p>
+<p>Our quantile regression random forest will be trained using the training data like this:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>qrf <span class="ot">&lt;-</span> </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  quantregForest<span class="sc">::</span><span class="fu">quantregForest</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    train_variable_data[,<span class="dv">1</span>], </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    train_variable_data<span class="sc">$</span>y,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">nodesize =</span> <span class="dv">3</span>, <span class="at">sampsize =</span> <span class="dv">500</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>train_quantiles <span class="ot">&lt;-</span> </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">predict</span>(qrf,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>          train_variable_data, </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">what =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>train_cov <span class="ot">&lt;-</span> </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coverage</span>(train_variable_data<span class="sc">$</span>y,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                      train_quantiles[,<span class="dv">1</span>],</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                      train_quantiles[,<span class="dv">2</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Next, we can see that our quantile regression looks good on our training data, and we also have a fairly high coverage. I was aiming for 95%, but it seems it’s close to 99%! Will it hold on our calibration set?</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>Our function <span class="math inline">\(\hat f_{n_1}(X_i), \ i \in D_1\)</span>, trained predicts the overall mean well enough. The best fit line looks good, despite having regions with higher and lower heteroskedasticity.</p>
+<p>We can now fit our model to the calibration set, and we can check that our coverage is very close to 95%. Now, using real data it might not be this close to our expected coverage. It could be 90%, or even lower.</p>
+<p>Still, the point of this is to learn, so we will Conformalize our intervals so that we can get proper coverage in the long run.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>m_nnet <span class="ot">&lt;-</span> </span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">neuralnet</span>(y <span class="sc">~</span> x,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>            train_variable_data,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">hidden =</span> <span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">5</span>),</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">threshold=</span><span class="fl">0.04</span>, </span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">act.fct=</span><span class="st">"tanh"</span>, </span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">linear.output=</span><span class="cn">TRUE</span>, </span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">stepmax=</span><span class="fl">1e7</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>cal_quantiles <span class="ot">&lt;-</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">predict</span>(qrf,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>          cal_variable_data, </span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>          <span class="at">what =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>cal_cov <span class="ot">&lt;-</span> </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coverage</span>(cal_variable_data<span class="sc">$</span>y,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                      cal_quantiles[,<span class="dv">1</span>],</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                      cal_quantiles[,<span class="dv">2</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>To create our prediction intervals, we need to define a ‘distance’ or ‘score’ function and a spread predictor. We’ll be using the absolute difference for the score function, and the function for the spread will be based on this score.</p>
-<p>The spread predictor should be estimated using the same variables as the neural network, not necessarily using the same type of model. In this particular case we only have 1 covariate. To show that you can use something other than a neural network, my spread predictor will be a smoothing spline. The relationship between our predictor and the score function looks like this, where the red line is <span class="math inline">\(\hat \sigma_{n_1}\)</span>.</p>
+<p>First, we need to calculate the difference between our lower and upper intervals with respect to the calibration data and then get the maximum per row, which will give us the following set of calibration residuals: <span class="math inline">\(R_i = \max\left\{\hat f_{n_1}^{\alpha/2}(X_i) - Y_i, \ Y_i - \hat f_{n_1}^{1 - \alpha/2}(X_i) \right\}, \ i \in D_2\)</span></p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit model to calibration set</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>spread <span class="ot">&lt;-</span> <span class="fu">abs</span>(train_variable_data<span class="sc">$</span>y <span class="sc">-</span> m_nnet<span class="sc">$</span>net.result[[<span class="dv">1</span>]])</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>spread_predictor <span class="ot">&lt;-</span> <span class="fu">smooth.spline</span>(train_variable_data<span class="sc">$</span>x, spread)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Now, we need calculate our calibration studentized residuals <span class="math inline">\(R_i = \frac{|Y_i - \hat f_{n_1}(X_i)|}{\hat\sigma_{n_1}(X_i)}, \ i \in D_2\)</span>, using our calibration data.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>cal_spread <span class="ot">&lt;-</span> <span class="fu">predict</span>(spread_predictor, cal_variable_data[,<span class="dv">1</span>])</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cal_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, cal_variable_data[,<span class="dv">1</span>]) </span>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lower <span class="ot">&lt;-</span>  cal_quantiles[,<span class="dv">1</span>] <span class="sc">-</span> cal_variable_data<span class="sc">$</span>y</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>upper <span class="ot">&lt;-</span>  cal_variable_data<span class="sc">$</span>y <span class="sc">-</span> cal_quantiles[,<span class="dv">2</span>]</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>quantile_searched <span class="ot">&lt;-</span> <span class="fu">ceiling</span>(<span class="fl">0.95</span> <span class="sc">*</span> (<span class="fu">nrow</span>(cal_variable_data)<span class="sc">+</span><span class="dv">1</span>))<span class="sc">/</span><span class="fu">nrow</span>(cal_variable_data)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>q_n2 <span class="ot">&lt;-</span> (<span class="fl">0.95</span> <span class="sc">*</span> (<span class="fu">nrow</span>(cal_variable_data)<span class="sc">+</span><span class="dv">1</span>))<span class="sc">/</span><span class="fu">nrow</span>(cal_quantiles)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>R_i <span class="ot">&lt;-</span> <span class="fu">apply</span>(<span class="fu">cbind</span>(upper,lower), <span class="dv">1</span>, max)</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the R_i</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>r_i <span class="ot">&lt;-</span> <span class="fu">abs</span>(cal_variable_data<span class="sc">$</span>y <span class="sc">-</span> cal_fit[,<span class="dv">1</span>])</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>r_i <span class="ot">&lt;-</span> r_i<span class="sc">/</span>cal_spread<span class="sc">$</span>y<span class="sc">$</span>x </span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>q_var <span class="ot">&lt;-</span> <span class="fu">quantile</span>(r_i, quantile_searched)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>q_n2 <span class="ot">&lt;-</span> <span class="fu">quantile</span>(R_i, q_n2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>In order to get our prediction intervals, we just need to multiply our spread predictor by our estimated quantile value, and create an lower and upper bound around the point predictor: <span class="math inline">\(\hat C_n(x) = \left[\hat f_{n_1}(x) - \hat \sigma_{n_1}(x)\hat q_{n_2}, \ \hat f_{n_1}(x) + \hat \sigma_{n_1}(x)\hat q_{n_2} \right]\)</span>.</p>
-<p>This, in our calibration set looks like this:</p>
+<p>Now, our new Conformalized Quantile Regression (CQR) set for future estimation is: <span class="math inline">\(\hat C(x) = \left[\hat f_{n_1}^{\alpha/2}(x) - \hat q_{n_2} , \ \hat f_{n_1}^{1 - \alpha/2}(x) + \hat q_{n_2} \right]\)</span></p>
+<p>In practice, this just makes our lower interval have a lower value, and our upper interval a higher value. So it increases the spread.</p>
+<p>Now we can calculate our prediction intervals in our test set, and check the coverage of our method.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit to test data</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>test_quantiles <span class="ot">&lt;-</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">predict</span>(qrf,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>          test_variable_data, </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>          <span class="at">what =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>lower_bounds <span class="ot">&lt;-</span> test_quantiles[,<span class="dv">1</span>] <span class="sc">-</span> q_n2</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>upper_bounds <span class="ot">&lt;-</span> test_quantiles[,<span class="dv">2</span>] <span class="sc">+</span> q_n2</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>test_conformal_coverage <span class="ot">&lt;-</span> </span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coverage</span>(test_variable_data[,<span class="st">"y"</span>],</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>           lower_bounds,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>           upper_bounds)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>test_regular_coverage <span class="ot">&lt;-</span> </span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coverage</span>(test_variable_data[,<span class="st">"y"</span>],</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>           test_quantiles[,<span class="dv">1</span>],</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>           test_quantiles[,<span class="dv">2</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Now, this type of data is great for teaching but it also comes with a flaw. Despite the pattern being harder than a regular linear regression, it’s still fairly easy for a ML model to learn it, hence the regular coverage is fairly close to our pre-defined <span class="math inline">\(\alpha\)</span> level. Despite this, we can see that using Conformal prediction we can <em>guarantee</em> that our intervals will have at least our <span class="math inline">\(\alpha\)</span> level coverage.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the symmetric intervals</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">aes</span>(x, y), <span class="at">data =</span> test_variable_data) <span class="sc">+</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">15</span>)  <span class="sc">+</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">x =</span> x,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">ymin =</span> lower_bounds,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">ymax =</span> upper_bounds), </span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">alpha =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"pink"</span>) <span class="sc">+</span> </span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>           <span class="at">x =</span> <span class="fl">0.75</span>, </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>           <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.5</span>, </span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">paste</span>(<span class="st">"Regular Coverage of:"</span>, </span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>                         scales<span class="sc">::</span><span class="fu">percent</span>(test_regular_coverage, </span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>                                         <span class="fl">0.01</span>),</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>                         <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>                         <span class="st">"Conformal coverage of:"</span>, </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                         scales<span class="sc">::</span><span class="fu">percent</span>(test_conformal_coverage, </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>                                         <span class="fl">0.01</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>                         )</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>           )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -373,47 +420,8 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>Now we can calculate our prediction intervals in our test set, and check the coverage of our method.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit to test data</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>test_fit <span class="ot">&lt;-</span> <span class="fu">predict</span>(m_nnet, test_variable_data[,<span class="dv">1</span>])</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>test_spread <span class="ot">&lt;-</span> <span class="fu">predict</span>(spread_predictor, test_variable_data[,<span class="dv">1</span>])</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>lower_bounds <span class="ot">&lt;-</span> test_fit <span class="sc">-</span> test_spread<span class="sc">$</span>y<span class="sc">$</span>x<span class="sc">*</span>q_var</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>upper_bounds <span class="ot">&lt;-</span> test_fit <span class="sc">+</span> test_spread<span class="sc">$</span>y<span class="sc">$</span>x<span class="sc">*</span>q_var</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>test_coverage <span class="ot">&lt;-</span> <span class="fu">coverage</span>(test_variable_data[,<span class="st">"y"</span>],</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                          lower_bounds,</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>                          upper_bounds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the symmetric intervals</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">aes</span>(x, y), <span class="at">data =</span> test_variable_data) <span class="sc">+</span> </span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="dv">15</span>)  <span class="sc">+</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="fu">aes</span>(x, test_fit), <span class="at">col =</span> <span class="st">"darkred"</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                     <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> </span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">ymin =</span> lower_bounds,</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">ymax =</span> upper_bounds), <span class="at">alpha =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>,</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"pink"</span>) <span class="sc">+</span> </span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>,</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>           <span class="at">x =</span> <span class="fl">0.9</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.5</span>, </span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">paste</span>(<span class="st">"Coverage of:"</span>, </span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>                         scales<span class="sc">::</span><span class="fu">percent</span>(test_coverage) ))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>So, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 % using studentized residuals even on the case of heteroscedastic data. This is fairly useful, especially when you see a pattern that can be modeled by a function within the training residuals.</p>
-<p>Studentized residuals might fall short when <span class="math inline">\(\hat f_{n_1}\)</span> is complex and leaves little to no information on the residuals to use this method. An alternative to this is a conformalized quantile regression, a method that focuses directly on the prediction bands instead of using residuals. This I’ll cover on part 3.</p>
-<p>The idea of most conformal prediction methods is similar: to make post-hoc adjustments to our uncertainty in order to achieve a specific long-run coverage, which is firmly rooted in a frequentist interpretation of statistics.</p>
+<p>In the end, using our test set of 10.000 observations, we can see that the coverage is actually at least 95 % using CQR even on the case of heteroscedastic data. This is fairly useful when we’re interested in prediction regions rather than a point estimator. Even then, we could’ve used the median as our point estimator instead of another model too if we wanted! It’s the beauty of Quantiles.</p>
+<p>To reiterate. The idea of most conformal prediction methods is similar: to make post-hoc adjustments to our uncertainty in order to achieve a specific long-run coverage, which is firmly rooted in a frequentist interpretation of statistics.</p>
 
 
 </section>
