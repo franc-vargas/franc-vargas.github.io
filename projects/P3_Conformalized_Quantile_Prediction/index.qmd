@@ -73,7 +73,6 @@ set.seed(1992)
 train_variable_data <- make_variable_data(10000)
 cal_variable_data <- make_variable_data(1000)
 test_variable_data <- make_variable_data(10000)
-
 ```
 
 Our quantile regression random forest will be trained using the training data like this: 

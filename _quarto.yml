@@ -7,7 +7,7 @@ website:
     title: "Francisco Vargas"
     left: 
       - href: Resume_Francisco_Vargas.pdf
-        text: "CV"
+        text: "CV/Resume"
         target: _blank
     right: 
       - href: projects/index.qmd

@@ -1,27 +1,31 @@
 ---
 title: "Francisco Vargas"
+image: "Milaneso_Brillando_Cropped.jpg"
 subtitle: "Statistics & Data Science | Veterinarian"
 about:
   template: trestles
+  image-width: 10em
+  image-shape: round
+
 ---
 
 ## Education
 
-Pontificia Universidad Católica de Chile | Masters in Statistics | March 2023 - December 2024
+**Pontificia Universidad Católica de Chile** | Masters in Statistics | March 2023 - December 2024
 
-Pontificia Universidad Católica de Chile | Diploma in Biostatistics | May 2022 - December 2022
+**Pontificia Universidad Católica de Chile** | Diploma in Biostatistics | May 2022 - December 2022
 
-Universidad Mayor | Veterinarian | March 2011 - December 2016
+**Universidad Mayor** | Veterinarian | March 2011 - December 2016
 
 ## Experience
 
-IQVIA | Data Management Analyst | June 2022 - Present
+**IQVIA** | Data Management Analyst | June 2022 - Present
 
-Virbac Chile | Clinical Trials Assistant | May 2021 - May 2022
+**Virbac Chile** | Clinical Trials Assistant | May 2021 - May 2022
 
-Mowi Chile S.A. | Saltwater Site Assistant | September 2019 - January 2021
+**Mowi Chile S.A.** | Saltwater Site Assistant | September 2019 - January 2021
 
-Multi X S.A. | Saltwater Site Assistant | June 2018 - September 2019
+**Multi X S.A.** | Saltwater Site Assistant | June 2018 - September 2019
 
-AquaChile S.A. | Saltwater Site Assistant | March 2018 - June 2018
+**AquaChile S.A.** | Saltwater Site Assistant | March 2018 - June 2018
 
