@@ -60,8 +60,8 @@ customGraph <- function(base, zoom.date = NULL){
   theme(legend.position = "top")+
   scale_colour_manual(values = colors)+
   labs(x = "Period", 
-       y = "Normal Stock: Billions of CLP",
-       caption = "Series: Banco de Chile's Normal Consumer stock",
+       y = "Consumer Stock: Billions of CLP",
+       caption = "Series: Banco de Chile's Consumer stock",
        color = "")+
   scale_y_continuous(
     labels = scales::label_currency(accuracy = 0.02,
